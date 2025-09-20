@@ -1,0 +1,41 @@
+name: Coverage
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: '4.3.0'
+
+    - name: Setup R dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gfortran liblapack-dev libblas-dev
+
+    - name: Install R packages
+      run: |
+        Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'covr'), repos='https://cran.rstudio.com')"
+        Rscript -e "remotes::install_github('eddelbuettel/RInside')"
+
+    - name: Build C++ library
+      run: |
+        make clean
+        make
+
+    - name: Generate coverage report
+      run: |
+        cd R-package
+        Rscript -e 'covr::codecov()'
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // singlesubject_
 Rcpp::List singlesubject_(Rcpp::NumericVector concentration, Rcpp::NumericVector time, Rcpp::CharacterVector location_prior, Rcpp::List inpriors, Rcpp::List proposalvars, Rcpp::List startingvals, int mcmc_iterations, int thin, int burnin, bool verbose, int pv_adjust_iter, int pv_adjust_max_iter, double bivariate_pv_target_ratio, double univariate_pv_target_ratio);
 RcppExport SEXP _bayespulse_singlesubject_(SEXP concentrationSEXP, SEXP timeSEXP, SEXP location_priorSEXP, SEXP inpriorsSEXP, SEXP proposalvarsSEXP, SEXP startingvalsSEXP, SEXP mcmc_iterationsSEXP, SEXP thinSEXP, SEXP burninSEXP, SEXP verboseSEXP, SEXP pv_adjust_iterSEXP, SEXP pv_adjust_max_iterSEXP, SEXP bivariate_pv_target_ratioSEXP, SEXP univariate_pv_target_ratioSEXP) {
@@ -31,7 +36,7 @@ BEGIN_RCPP
 END_RCPP
 }
 
-RcppExport SEXP run_testthat_tests();
+RcppExport SEXP run_testthat_tests(void);
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bayespulse_singlesubject_", (DL_FUNC) &_bayespulse_singlesubject_, 14},

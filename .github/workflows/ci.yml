@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        r-version: ['4.3.0']
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Required for symbolic links
+
+    - name: Setup R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: ${{ matrix.r-version }}
+
+    - name: Setup R dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gfortran liblapack-dev libblas-dev
+
+    - name: Setup R dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        # Install gfortran for RcppArmadillo
+        brew install gfortran || true
+        # Ensure R can find gfortran
+        sudo ln -sf /opt/homebrew/bin/gfortran /usr/local/bin/gfortran || true
+
+    - name: Install R packages
+      run: |
+        Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat'), repos='https://cran.rstudio.com')"
+        Rscript -e "remotes::install_github('eddelbuettel/RInside')"
+      shell: bash
+
+    - name: Build C++ library
+      run: |
+        make clean
+        make
+
+    - name: Run C++ tests
+      run: |
+        bin/tests
+
+    - name: Build R package
+      run: |
+        cd R-package
+        make
+
+    - name: Check R package
+      run: |
+        cd R-package
+        Rscript -e 'devtools::check()'
+
+    - name: Install R package
+      run: |
+        cd R-package
+        Rscript -e 'devtools::install()'
+
+    - name: Run R tests
+      run: |
+        cd R-package
+        Rscript -e 'devtools::test()'
