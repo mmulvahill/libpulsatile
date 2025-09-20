@@ -47,12 +47,13 @@ jobs:
         # Ensure R can find gfortran
         sudo ln -sf /opt/homebrew/bin/gfortran /usr/local/bin/gfortran || true
 
-    - name: Install core R packages
+    - name: Install R package dependencies
       run: |
+        # Install all dependencies listed in DESCRIPTION file
         if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-          Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'testthat', 'remotes'), repos='https://packagemanager.rstudio.com/all/latest')"
+          Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'testthat', 'remotes', 'dplyr', 'ggplot2', 'tibble', 'tidyr', 'rlang', 'magrittr'), repos='https://packagemanager.rstudio.com/all/latest')"
         else
-          Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'testthat', 'remotes'), repos='https://cran.rstudio.com')"
+          Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'testthat', 'remotes', 'dplyr', 'ggplot2', 'tibble', 'tidyr', 'rlang', 'magrittr'), repos='https://cran.rstudio.com')"
         fi
       shell: bash
 

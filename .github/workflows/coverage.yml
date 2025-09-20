@@ -34,7 +34,7 @@ jobs:
 
     - name: Install R packages
       run: |
-        Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'testthat', 'covr', 'remotes'), repos='https://packagemanager.rstudio.com/all/latest')"
+        Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'testthat', 'covr', 'remotes', 'dplyr', 'ggplot2', 'tibble', 'tidyr', 'rlang', 'magrittr'), repos='https://packagemanager.rstudio.com/all/latest')"
 
     - name: Install RInside (optional for coverage)
       env:

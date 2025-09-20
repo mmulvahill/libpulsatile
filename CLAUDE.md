@@ -19,9 +19,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The project uses symbolic links between the main library and R package. Windows users must clone with `git clone -c core.symlinks=true` and have appropriate permissions.
 
 ## Dependencies
-- **R packages**: Rcpp, RcppArmadillo, devtools, testthat, RInside
+- **R packages**:
+  - Required: Rcpp, RcppArmadillo, dplyr, ggplot2, tibble, tidyr, rlang
+  - Development: testthat, remotes, magrittr
+  - Optional: RInside (for standalone C++ builds)
 - **System libraries**: gfortran (required for RcppArmadillo)
-- Install R dependencies: `Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'RInside'))"`
+- Install R dependencies: `Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'dplyr', 'ggplot2', 'tibble', 'tidyr', 'rlang', 'testthat', 'remotes', 'magrittr'))"`
 
 ## Build and Test Commands
 - **Build library**: `make`
