@@ -67,3 +67,5 @@ The project uses symbolic links between the main library and R package. Windows 
 - Use `-DNORINSIDE` flag if you want to skip RInside dependency
 - Windows users: Ensure symbolic links are properly created during clone
 - ARM64 Mac compatibility: Fixed Catch framework assembly instructions for Apple Silicon
+- Ubuntu/glibc compatibility: Fixed Catch framework SIGSTKSZ compilation error for modern Linux systems
+- RcppArmadillo warnings: Added `-DARMA_USE_CURRENT` flag to suppress C++11 deprecation warnings
