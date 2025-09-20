@@ -9,6 +9,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -23,6 +24,14 @@ jobs:
       uses: r-lib/actions/setup-r@v2
       with:
         r-version: ${{ matrix.r-version }}
+        use-public-rspm: true
+
+    - name: Cache R packages
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.R_LIBS_USER }}
+        key: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-${{ hashFiles('.github/depends.Rds') }}
+        restore-keys: ${{ runner.os }}-${{ hashFiles('.github/R-version') }}-1-
 
     - name: Setup R dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
@@ -38,9 +47,13 @@ jobs:
         # Ensure R can find gfortran
         sudo ln -sf /opt/homebrew/bin/gfortran /usr/local/bin/gfortran || true
 
-    - name: Install R packages
+    - name: Install core R packages
       run: |
-        Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'remotes'), repos='https://cran.rstudio.com')"
+        if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+          Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'testthat', 'remotes'), repos='https://packagemanager.rstudio.com/all/latest')"
+        else
+          Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'testthat', 'remotes'), repos='https://cran.rstudio.com')"
+        fi
       shell: bash
 
     - name: Install RInside (with fallback)
@@ -88,19 +101,17 @@ jobs:
     - name: Build R package
       run: |
         cd R-package
-        make
+        # Use R CMD instead of devtools for faster, lighter builds
+        R CMD build --no-resave-data .
+        R CMD INSTALL --build *.tar.gz
 
     - name: Check R package
       run: |
         cd R-package
-        Rscript -e 'devtools::check()'
-
-    - name: Install R package
-      run: |
-        cd R-package
-        Rscript -e 'devtools::install()'
+        R CMD check --no-manual *.tar.gz
 
     - name: Run R tests
       run: |
         cd R-package
-        Rscript -e 'devtools::test()'
+        # Simple test run without devtools
+        Rscript -e "library(testthat); library(bayespulse); test_dir('tests')"
