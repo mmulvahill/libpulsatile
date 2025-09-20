@@ -51,8 +51,10 @@ The project uses symbolic links between the main library and R package. Windows 
 
 ## CI/CD Pipeline
 - **GitHub Actions** workflows in `.github/workflows/`:
-  - `ci.yml`: Builds and tests on Ubuntu and macOS with R 4.3.0
+  - `ci.yml`: Builds and tests on Ubuntu and macOS with R 4.3.0, gracefully handles RInside dependency
   - `coverage.yml`: Generates coverage reports using `covr` package
+- **RInside handling**: CI attempts to install RInside from GitHub, falls back to CRAN, or skips C++ standalone build if unavailable
+- **R package focus**: CI prioritizes R package build/test which uses `NORINSIDE` flag and is more robust
 - Replaces legacy Travis CI configuration
 
 ## Common Issues

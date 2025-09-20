@@ -25,13 +25,31 @@ jobs:
 
     - name: Install R packages
       run: |
-        Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'covr'), repos='https://cran.rstudio.com')"
-        Rscript -e "remotes::install_github('eddelbuettel/RInside')"
+        Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'covr', 'remotes'), repos='https://cran.rstudio.com')"
 
-    - name: Build C++ library
+    - name: Install RInside (optional for coverage)
+      env:
+        GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Try to install RInside, but don't fail if it doesn't work
+        Rscript -e "
+        tryCatch({
+          remotes::install_github('eddelbuettel/RInside', upgrade='never', quiet=TRUE)
+          cat('RInside installed\n')
+        }, error = function(e) {
+          cat('RInside installation failed, proceeding without it\n')
+        })"
+
+    - name: Build C++ library (optional)
       run: |
         make clean
-        make
+        # Try to build C++ library, but don't fail if RInside is missing
+        if Rscript -e "library(RInside)" 2>/dev/null; then
+          echo "Building C++ library"
+          make
+        else
+          echo "Skipping C++ build, focusing on R package coverage"
+        fi
 
     - name: Generate coverage report
       run: |
