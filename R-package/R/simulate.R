@@ -158,12 +158,12 @@ simulate_pulse <- function(num_obs           = 144,
                          "location" = tau,
                          "mass_kappa"  = mass_kappa,
                          "width_kappa" = width_kappa)
-  allpulseparms <- tibble::as_data_frame(allpulseparms)
+  allpulseparms <- tibble::as_tibble(allpulseparms)
 
   ysim_df   <- cbind("observation"   = 1:length(taxis),
                      "time"          = taxis,
                      "concentration" = ysimerror)
-  ysim_df   <- tibble::as_data_frame(ysim_df)
+  ysim_df   <- tibble::as_tibble(ysim_df)
 
   #---------------------------------------
   # Create return object

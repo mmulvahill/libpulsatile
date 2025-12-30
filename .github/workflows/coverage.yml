@@ -21,11 +21,18 @@ jobs:
     - name: Setup R dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y gfortran liblapack-dev libblas-dev
+        sudo apt-get install -y gfortran liblapack-dev libblas-dev \
+          libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
+          libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
+          libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
 
     - name: Install R packages
       run: |
-        Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'covr', 'remotes'), repos='https://cran.rstudio.com')"
+        # Ensure the library directory exists and is writable
+        mkdir -p $R_LIBS_USER
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'covr', 'remotes'), repos='https://cran.rstudio.com', lib=Sys.getenv('R_LIBS_USER'))"
+        # Install R package dependencies from DESCRIPTION file
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
 
     - name: Install RInside (optional for coverage)
       env:
@@ -54,6 +61,8 @@ jobs:
     - name: Generate coverage report
       run: |
         cd R-package
-        Rscript -e 'covr::codecov()'
+        # Document and build first, then generate coverage
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::document()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); covr::codecov()"
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
