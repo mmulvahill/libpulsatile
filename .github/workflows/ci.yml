@@ -89,22 +89,19 @@ jobs:
           echo "C++ tests not available (RInside not installed)"
         fi
 
-    - name: Build R package
+    - name: Build and check R package
       run: |
         cd R-package
-        make
-
-    - name: Check R package
-      run: |
-        cd R-package
-        Rscript -e 'devtools::check()'
+        # Use devtools directly instead of make (which uses --vanilla flag that ignores R_LIBS_USER)
+        Rscript -e "devtools::document()"
+        Rscript -e "devtools::check()"
 
     - name: Install R package
       run: |
         cd R-package
-        Rscript -e 'devtools::install()'
+        Rscript -e "devtools::install()"
 
     - name: Run R tests
       run: |
         cd R-package
-        Rscript -e 'devtools::test()'
+        Rscript -e "devtools::test()"
