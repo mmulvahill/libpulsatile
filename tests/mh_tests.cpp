@@ -38,6 +38,18 @@
 // Note: Mor tests needed.
 //----------------------------------------------------------------------
 
+// Test configuration constants
+// These match the default values used in sampler constructors
+namespace TestConfig {
+  const int    ADJUST_ITER   = 500;    // Adjust PV on multiples of this
+  const int    MAX_ITER      = 25000;  // Maximum iteration to adjust PV
+  const double TARGET_RATIO  = 0.35;   // Target acceptance ratio
+  // Dead zone bounds: when ratio is in [DEAD_ZONE_LOW, DEAD_ZONE_HIGH], no PV adjustment occurs
+  // Derived from: y = 1.0 + 1000*(ratio - 0.35)^3; adjustment only if y < 0.9 or y > 1.1
+  const double DEAD_ZONE_LOW  = 0.304;  // Below this, PV decreases
+  const double DEAD_ZONE_HIGH = 0.396;  // Above this, PV increases
+}
+
 
 
 //
@@ -149,21 +161,21 @@ TEST_CASE( "second mmh test -- SS_DrawLocationsStrauss", "[mmh-implementations]"
     double initial_pv, adjusted_pv, final_pv, adjusted_psd;
     initial_pv = draw_pulse_locations_strauss.pv.getpv();
 
-    // Run iterations 0-499 (adjustment happens at iter % 500 == 0, so iter 500 triggers it)
-    while (iter < 500) {
+    // Run iterations 0 to (ADJUST_ITER-1); adjustment triggers at iter == ADJUST_ITER
+    while (iter < TestConfig::ADJUST_ITER) {
       draw_pulse_locations_strauss.sample_pulses(patient, iter);
       ++iter;
     }
 
-    // Force a deterministic acceptance ratio before iteration 500 triggers adjustment.
+    // Force a deterministic acceptance ratio before adjustment triggers.
     // With 100% acceptance, y = 1.0 + 1000*(1.0-0.35)^3 = 275.625 > 1.1, so PV increases by 10%.
-    // Using iter=1 for addaccept() since iter%500!=0 won't trigger premature adjustment.
+    // Using iter=1 for addaccept() since iter%ADJUST_ITER!=0 won't trigger premature adjustment.
     draw_pulse_locations_strauss.pv.resetratio();
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < TestConfig::ADJUST_ITER; ++i) {
       draw_pulse_locations_strauss.pv.addaccept(1);  // iter=1 won't trigger check_adjust
     }
 
-    // Now trigger adjustment at iteration 500
+    // Now trigger adjustment at iteration ADJUST_ITER
     draw_pulse_locations_strauss.sample_pulses(patient, iter);
     ++iter;
 
@@ -173,27 +185,26 @@ TEST_CASE( "second mmh test -- SS_DrawLocationsStrauss", "[mmh-implementations]"
     REQUIRE( adjusted_pv == Approx(initial_pv * 1.1) );
     REQUIRE( adjusted_psd == Approx(sqrt(initial_pv * 1.1)) );
 
-    while (iter < 25000) {
+    while (iter < TestConfig::MAX_ITER) {
       draw_pulse_locations_strauss.sample_pulses(patient, iter);
       ++iter;
     }
 
-    // Test before and after the final change at iteration 25000
+    // Test before and after the final change at iteration MAX_ITER
     adjusted_pv = draw_pulse_locations_strauss.pv.getpv();
     REQUIRE( draw_pulse_locations_strauss.pv.getpv() == adjusted_pv );
     REQUIRE( draw_pulse_locations_strauss.pv.getpsd() == Approx(sqrt(adjusted_pv)) );
 
     // Force a deterministic acceptance ratio to ensure PV adjustment occurs.
-    // The PV only adjusts when the acceptance ratio is far enough from target (0.35).
+    // The PV only adjusts when the acceptance ratio is far enough from target.
     // With 0% acceptance (all rejects), y = 1.0 + 1000*(-0.35)^3 = -41.875 < 0.9,
     // so PV will decrease by 10%.
-    // Using iter=1 for addreject() since iter%500!=0 won't trigger premature adjustment.
     draw_pulse_locations_strauss.pv.resetratio();
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < TestConfig::ADJUST_ITER; ++i) {
       draw_pulse_locations_strauss.pv.addreject(1);  // iter=1 won't trigger check_adjust
     }
 
-    // Now trigger adjustment at iteration 25000 (the last eligible iteration)
+    // Now trigger adjustment at iteration MAX_ITER (the last eligible iteration)
     draw_pulse_locations_strauss.sample_pulses(patient, iter);
     ++iter;
 
@@ -210,6 +221,50 @@ TEST_CASE( "second mmh test -- SS_DrawLocationsStrauss", "[mmh-implementations]"
     REQUIRE( draw_pulse_locations_strauss.pv.getpv() == final_pv );
     REQUIRE( draw_pulse_locations_strauss.pv.getpsd() == Approx(sqrt(final_pv)) );
 
+  }
+
+  SECTION( "Dead zone test - acceptance ratio near target causes no PV change" ) {
+    // When acceptance ratio is in the dead zone [0.304, 0.396], no PV adjustment occurs.
+    // This documents the intentional behavior of the adjustment algorithm.
+    // Formula: y = 1.0 + 1000*(ratio - 0.35)^3
+    // Adjustment only occurs if y < 0.9 (decrease PV) or y > 1.1 (increase PV)
+
+    int iter = 0;
+
+    // Run up to just before adjustment trigger
+    while (iter < TestConfig::ADJUST_ITER) {
+      draw_pulse_locations_strauss.sample_pulses(patient, iter);
+      ++iter;
+    }
+
+    // Force acceptance ratio to exactly target (35%) - dead center of dead zone
+    // y = 1.0 + 1000*(0.35 - 0.35)^3 = 1.0, which is in [0.9, 1.1], so NO adjustment
+    draw_pulse_locations_strauss.pv.resetratio();
+    int accepts = static_cast<int>(TestConfig::ADJUST_ITER * TestConfig::TARGET_RATIO);
+    int rejects = TestConfig::ADJUST_ITER - accepts;
+    for (int i = 0; i < accepts; ++i) {
+      draw_pulse_locations_strauss.pv.addaccept(1);
+    }
+    for (int i = 0; i < rejects; ++i) {
+      draw_pulse_locations_strauss.pv.addreject(1);
+    }
+
+    double pv_before = draw_pulse_locations_strauss.pv.getpv();
+
+    // Trigger adjustment check at iteration ADJUST_ITER
+    draw_pulse_locations_strauss.sample_pulses(patient, iter);
+    ++iter;
+
+    double pv_after = draw_pulse_locations_strauss.pv.getpv();
+
+    // PV should NOT have changed because ratio was in the dead zone
+    REQUIRE( pv_after == Approx(pv_before) );
+
+    // Verify that the ratio was indeed in the dead zone
+    // (The ratio is calculated as accepts/total, which should be ~0.35)
+    double forced_ratio = static_cast<double>(accepts) / TestConfig::ADJUST_ITER;
+    REQUIRE( forced_ratio >= TestConfig::DEAD_ZONE_LOW );
+    REQUIRE( forced_ratio <= TestConfig::DEAD_ZONE_HIGH );
   }
 
 

@@ -41,6 +41,8 @@ jobs:
     - name: Install R packages
       run: |
         Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'remotes'), repos='https://cran.rstudio.com')"
+        # Install R package dependencies from DESCRIPTION file
+        Rscript -e "remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
       shell: bash
 
     - name: Install RInside (with fallback)
