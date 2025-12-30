@@ -170,8 +170,8 @@ struct PatientPriors {
 
 };
 
-// A more appropriate name for the population version
-typedef struct PatientPriors PopulationEstimates;
+// Note: PopulationEstimates is now defined in population.h as a separate struct
+// (not a typedef of PatientPriors)
 
 
 
