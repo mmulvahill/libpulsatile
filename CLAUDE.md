@@ -19,9 +19,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The project uses symbolic links between the main library and R package. Windows users must clone with `git clone -c core.symlinks=true` and have appropriate permissions.
 
 ## Dependencies
-- **R packages**: Rcpp, RcppArmadillo, devtools, testthat, RInside
+- **R packages**:
+  - Required: Rcpp, RcppArmadillo, dplyr, ggplot2, tibble, tidyr, rlang
+  - Development: testthat, remotes, magrittr
+  - Optional: RInside (for standalone C++ builds)
 - **System libraries**: gfortran (required for RcppArmadillo)
-- Install R dependencies: `Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'RInside'))"`
+- Install R dependencies: `Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'dplyr', 'ggplot2', 'tibble', 'tidyr', 'rlang', 'testthat', 'remotes', 'magrittr'))"`
 
 ## Build and Test Commands
 - **Build library**: `make`
@@ -41,7 +44,7 @@ The project uses symbolic links between the main library and R package. Windows 
 - **Imports**: Group imports by library (Rcpp, std, project headers)
 - **Documentation**: Roxygen2 for R functions, header comments for C++
 - **Error Handling**: `Rcpp::stop()` for C++ errors, `stopifnot()` for R
-- **Tests**: Catch framework for C++, testthat for R
+- **Tests**: Catch2 v2.13.10 framework for C++, testthat for R
 
 ## Development Workflow
 - The main algorithm is in `singlesubject_()` Rcpp export function
@@ -63,4 +66,7 @@ The project uses symbolic links between the main library and R package. Windows 
 - For macOS general guidance, see: https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/
 - Use `-DNORINSIDE` flag if you want to skip RInside dependency
 - Windows users: Ensure symbolic links are properly created during clone
-- ARM64 Mac compatibility: Fixed Catch framework assembly instructions for Apple Silicon
+- ARM64 Mac compatibility: Upgraded to Catch2 v2.13.10 with native Apple Silicon support
+- Ubuntu/glibc compatibility: Modern Catch2 resolves SIGSTKSZ compilation errors
+- RcppArmadillo warnings: Added `-DARMA_USE_CURRENT` flag to suppress C++11 deprecation warnings
+- Testing framework: Upgraded from Catch v2.0.1 (2017) to Catch2 v2.13.10 (2022) for improved reliability and platform support
