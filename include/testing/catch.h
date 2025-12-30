@@ -185,6 +185,12 @@
 #   define CATCH_CONFIG_POSIX_SIGNALS
 #endif
 
+// Workaround for modern glibc where SIGSTKSZ is no longer a compile-time constant
+// See: https://github.com/catchorg/Catch2/issues/2178
+#if defined(CATCH_CONFIG_POSIX_SIGNALS) && !defined(CATCH_SIGSTKSZ)
+#   define CATCH_SIGSTKSZ 32768
+#endif
+
 #if !defined(CATCH_INTERNAL_SUPPRESS_PARENTHESES_WARNINGS)
 #   define CATCH_INTERNAL_SUPPRESS_PARENTHESES_WARNINGS
 #   define CATCH_INTERNAL_UNSUPPRESS_PARENTHESES_WARNINGS
@@ -6600,7 +6606,7 @@ namespace Catch {
         isSet = true;
         stack_t sigStack;
         sigStack.ss_sp = altStackMem;
-        sigStack.ss_size = SIGSTKSZ;
+        sigStack.ss_size = CATCH_SIGSTKSZ;
         sigStack.ss_flags = 0;
         sigaltstack(&sigStack, &oldSigStack);
         struct sigaction sa = { };
@@ -6631,7 +6637,7 @@ namespace Catch {
     bool FatalConditionHandler::isSet = false;
     struct sigaction FatalConditionHandler::oldSigActions[sizeof(signalDefs)/sizeof(SignalDefs)] = {};
     stack_t FatalConditionHandler::oldSigStack = {};
-    char FatalConditionHandler::altStackMem[SIGSTKSZ] = {};
+    char FatalConditionHandler::altStackMem[CATCH_SIGSTKSZ] = {};
 
 } // namespace Catch
 
