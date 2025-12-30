@@ -28,7 +28,10 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y gfortran liblapack-dev libblas-dev
+        sudo apt-get install -y gfortran liblapack-dev libblas-dev \
+          libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
+          libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
+          libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
 
     - name: Setup R dependencies (macOS)
       if: matrix.os == 'macos-latest'
@@ -40,7 +43,11 @@ jobs:
 
     - name: Install R packages
       run: |
-        Rscript -e "install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'remotes'), repos='https://cran.rstudio.com')"
+        # Ensure the library directory exists and is writable
+        mkdir -p $R_LIBS_USER
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'remotes'), repos='https://cran.rstudio.com', lib=Sys.getenv('R_LIBS_USER'))"
+        # Install R package dependencies from DESCRIPTION file
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
       shell: bash
 
     - name: Install RInside (with fallback)
@@ -80,27 +87,26 @@ jobs:
         # Only run C++ tests if the binary was built
         if [ -f "bin/tests" ]; then
           echo "Running C++ tests"
+          # Set LD_LIBRARY_PATH to find R shared libraries
+          export LD_LIBRARY_PATH="$(R RHOME)/lib:${LD_LIBRARY_PATH}"
           bin/tests
         else
           echo "C++ tests not available (RInside not installed)"
         fi
 
-    - name: Build R package
+    - name: Build and check R package
       run: |
         cd R-package
-        make
-
-    - name: Check R package
-      run: |
-        cd R-package
-        Rscript -e 'devtools::check()'
+        # Use devtools directly instead of make (which uses --vanilla flag that ignores R_LIBS_USER)
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::document()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::check()"
 
     - name: Install R package
       run: |
         cd R-package
-        Rscript -e 'devtools::install()'
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::install()"
 
     - name: Run R tests
       run: |
         cd R-package
-        Rscript -e 'devtools::test()'
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::test()"
