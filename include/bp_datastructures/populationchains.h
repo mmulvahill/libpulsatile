@@ -94,7 +94,7 @@ class PopulationChains {
 //------------------------------------------------------------
 
 // Save one MCMC sample
-void PopulationChains::save_sample(Population *pop, int iter) {
+inline void PopulationChains::save_sample(Population *pop, int iter) {
 
   int r_iter = iter + 1;
 
@@ -161,7 +161,7 @@ void PopulationChains::save_sample(Population *pop, int iter) {
 
 
 // Print diagnostic output
-void PopulationChains::print_diagnostic_output(Population *pop, int iter) {
+inline void PopulationChains::print_diagnostic_output(Population *pop, int iter) {
 
   if (verbose && (iter % verbose_iter == 0) && iter > 0) {
 
@@ -187,7 +187,7 @@ void PopulationChains::print_diagnostic_output(Population *pop, int iter) {
 
 
 // Return output list
-List PopulationChains::output(Population *pop) {
+inline List PopulationChains::output(Population *pop) {
 
   // Add attributes to population chain
   NumericMatrix pop_chain_r = addattribs_population_chain(population_chain);
@@ -219,7 +219,7 @@ List PopulationChains::output(Population *pop) {
 
 
 // Add attributes to population chain
-NumericMatrix PopulationChains::addattribs_population_chain(arma::mat in) {
+inline NumericMatrix PopulationChains::addattribs_population_chain(arma::mat in) {
 
   NumericMatrix out = as<NumericMatrix>(wrap(in));
 
@@ -243,7 +243,7 @@ NumericMatrix PopulationChains::addattribs_population_chain(arma::mat in) {
 
 
 // Add attributes to subject chain
-NumericMatrix PopulationChains::addattribs_subject_chain(arma::mat in, int subject_id) {
+inline NumericMatrix PopulationChains::addattribs_subject_chain(arma::mat in, int subject_id) {
 
   NumericMatrix out = as<NumericMatrix>(wrap(in));
 
@@ -263,7 +263,7 @@ NumericMatrix PopulationChains::addattribs_subject_chain(arma::mat in, int subje
 
 
 // Add attributes to pulse chain
-List PopulationChains::addattribs_pulse_chain(MatrixVector in, int subject_id) {
+inline List PopulationChains::addattribs_pulse_chain(MatrixVector in, int subject_id) {
 
   List out(in.size());
 
@@ -282,7 +282,7 @@ List PopulationChains::addattribs_pulse_chain(MatrixVector in, int subject_id) {
 
 
 // Add attributes to one set of pulses
-NumericMatrix PopulationChains::addattribs_set_of_pulses(NumericMatrix out) {
+inline NumericMatrix PopulationChains::addattribs_set_of_pulses(NumericMatrix out) {
 
   colnames(out) = CharacterVector::create(
     "iteration",

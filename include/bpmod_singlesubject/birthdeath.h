@@ -44,7 +44,7 @@ class BirthDeathProcess
 //
 // sample()
 //
-void BirthDeathProcess::sample(Patient *patient, bool response_hormone, int iter) {
+inline void BirthDeathProcess::sample(Patient *patient, bool response_hormone, int iter) {
 
   Rcpp::RNGScope rng_scope;
 
@@ -194,7 +194,7 @@ void BirthDeathProcess::sample(Patient *patient, bool response_hormone, int iter
 //-----------------------------------------------------------------------------
 // add_new_pulse()
 //-----------------------------------------------------------------------------
-void BirthDeathProcess::add_new_pulse(Patient *patient, double position) {
+inline void BirthDeathProcess::add_new_pulse(Patient *patient, double position) {
 
   Rcpp::RNGScope rng_scope;
   double new_mass  = -1.;
@@ -228,7 +228,7 @@ void BirthDeathProcess::add_new_pulse(Patient *patient, double position) {
 // remove_pulse()
 //   Pick a node to remove, find and remove it
 //-----------------------------------------------------------------------------
-void BirthDeathProcess::remove_pulse(Patient *patient, 
+inline void BirthDeathProcess::remove_pulse(Patient *patient, 
                                      arma::vec death_rates, 
                                      int pulse_count) {
 
@@ -325,7 +325,7 @@ void BirthDeathProcess::remove_pulse(Patient *patient,
 //  calc_death_rates_strauss()
 //    Calculates a vector of death rates, one for each existing pulse.
 //-----------------------------------------------------------------------------
-arma::vec BirthDeathProcess::calc_death_rate_strauss(Patient *patient,
+inline arma::vec BirthDeathProcess::calc_death_rate_strauss(Patient *patient,
                                                      arma::vec partial_likelihood,
                                                      int pulse_count,
                                                      bool response_hormone) {
