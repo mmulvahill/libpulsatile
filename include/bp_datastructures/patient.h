@@ -91,7 +91,7 @@ struct Patient {
 
   // get_pulsecount()
   //   Get current number of pulses
-  int get_pulsecount() { return pulses.size(); };
+  int get_pulsecount() const { return pulses.size(); };
 
   // get_sumerrorsquared()
   //   Sums of squared error for error gibbs
