@@ -42,9 +42,9 @@ jobs:
       run: |
         # Ensure the library directory exists and is writable
         mkdir -p $R_LIBS_USER
-        Rscript -e ".libPaths('$R_LIBS_USER'); install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'remotes'), repos='https://cran.rstudio.com', lib='$R_LIBS_USER')"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'remotes'), repos='https://cran.rstudio.com', lib=Sys.getenv('R_LIBS_USER'))"
         # Install R package dependencies from DESCRIPTION file
-        Rscript -e ".libPaths('$R_LIBS_USER'); remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
       shell: bash
 
     - name: Install RInside (with fallback)
@@ -95,15 +95,15 @@ jobs:
       run: |
         cd R-package
         # Use devtools directly instead of make (which uses --vanilla flag that ignores R_LIBS_USER)
-        Rscript -e ".libPaths('$R_LIBS_USER'); devtools::document()"
-        Rscript -e ".libPaths('$R_LIBS_USER'); devtools::check()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::document()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::check()"
 
     - name: Install R package
       run: |
         cd R-package
-        Rscript -e ".libPaths('$R_LIBS_USER'); devtools::install()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::install()"
 
     - name: Run R tests
       run: |
         cd R-package
-        Rscript -e ".libPaths('$R_LIBS_USER'); devtools::test()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::test()"

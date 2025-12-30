@@ -27,9 +27,9 @@ jobs:
       run: |
         # Ensure the library directory exists and is writable
         mkdir -p $R_LIBS_USER
-        Rscript -e ".libPaths('$R_LIBS_USER'); install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'covr', 'remotes'), repos='https://cran.rstudio.com', lib='$R_LIBS_USER')"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'covr', 'remotes'), repos='https://cran.rstudio.com', lib=Sys.getenv('R_LIBS_USER'))"
         # Install R package dependencies from DESCRIPTION file
-        Rscript -e ".libPaths('$R_LIBS_USER'); remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
 
     - name: Install RInside (optional for coverage)
       env:
@@ -59,7 +59,7 @@ jobs:
       run: |
         cd R-package
         # Document and build first, then generate coverage
-        Rscript -e ".libPaths('$R_LIBS_USER'); devtools::document()"
-        Rscript -e ".libPaths('$R_LIBS_USER'); covr::codecov()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::document()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); covr::codecov()"
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
