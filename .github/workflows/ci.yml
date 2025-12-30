@@ -82,6 +82,8 @@ jobs:
         # Only run C++ tests if the binary was built
         if [ -f "bin/tests" ]; then
           echo "Running C++ tests"
+          # Set LD_LIBRARY_PATH to find R shared libraries
+          export LD_LIBRARY_PATH="$(R RHOME)/lib:${LD_LIBRARY_PATH}"
           bin/tests
         else
           echo "C++ tests not available (RInside not installed)"
