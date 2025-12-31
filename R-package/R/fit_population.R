@@ -25,7 +25,7 @@
 #'   \code{baseline}, \code{halflife}, \code{mass_mean}, \code{width_mean}.
 #' @param iters Number of MCMC iterations (default: 250000).
 #' @param thin Thinning interval - save every \code{thin}th sample (default: 50).
-#' @param burnin Number of initial samples to discard (default: 10%% of iters).
+#' @param burnin Number of initial samples to discard as burn-in (default: 0.1 * iters).
 #' @param use_tibble Return chains as tibble data frames for prettier printing
 #'   (default: TRUE). Requires tibble package.
 #' @param verbose Print diagnostic output every 5000 iterations including

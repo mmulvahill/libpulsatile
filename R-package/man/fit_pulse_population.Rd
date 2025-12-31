@@ -44,7 +44,7 @@ with small random perturbations. Each element should be a list with:
 
 \item{thin}{Thinning interval - save every \code{thin}th sample (default: 50).}
 
-\item{burnin}{Number of initial samples to discard (default: 10%% of iters).}
+\item{burnin}{Number of initial samples to discard as burn-in (default: 0.1 * iters).}
 
 \item{use_tibble}{Return chains as tibble data frames for prettier printing
 (default: TRUE). Requires tibble package.}
