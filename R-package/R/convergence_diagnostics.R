@@ -376,9 +376,9 @@ convergence_report <- function(fit) {
     
     # Convergence flag
     if (row$converged) {
-      cat("  ✓\n")
+      cat("  [OK]\n")
     } else {
-      cat("  ⚠ LOW ESS\n")
+      cat("  [LOW ESS]\n")
     }
   }
   
@@ -403,22 +403,22 @@ convergence_report <- function(fit) {
   cat("\n")
   cat("Interpretation:\n")
   cat("-" %R% 70, "\n")
-  
+
   if (min_ess > 400) {
-    cat("✓ Excellent: All parameters have high effective sample sizes\n")
+    cat("[OK] Excellent: All parameters have high effective sample sizes\n")
   } else if (min_ess > 100) {
-    cat("✓ Good: All parameters meet minimum ESS threshold\n")
+    cat("[OK] Good: All parameters meet minimum ESS threshold\n")
   } else {
-    cat("⚠ Warning: Some parameters have low ESS\n")
+    cat("[WARNING] Some parameters have low ESS\n")
     cat("  Consider running longer or adjusting proposal variances\n")
   }
-  
+
   if (avg_acf < 0.3) {
-    cat("✓ Good mixing: Low autocorrelation\n")
+    cat("[OK] Good mixing: Low autocorrelation\n")
   } else if (avg_acf < 0.7) {
     cat("~ Moderate mixing\n")
   } else {
-    cat("⚠ Poor mixing: High autocorrelation\n")
+    cat("[WARNING] Poor mixing: High autocorrelation\n")
     cat("  Consider thinning more or adjusting proposal variances\n")
   }
   

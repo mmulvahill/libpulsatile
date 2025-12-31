@@ -47,26 +47,26 @@
 #'
 #' \strong{Population Level:}
 #' \itemize{
-#'   \item \u03BC_\u03B1, \u03BC_\u03C9 - Mean pulse mass and width across subjects
-#'   \item \u03B8_b, \u03B8_h - Mean baseline and halflife across subjects
-#'   \item \u03C5_\u03B1, \u03C5_\u03C9 - Subject-to-subject SD of mean mass and width
-#'   \item \u03C3_b, \u03C3_h - Subject-to-subject SD of baseline and halflife
-#'   \item \u03C3_\u03B1, \u03C3_\u03C9 - Pulse-to-pulse SD of mass and width (shared)
-#'   \item \u03C3\u00B2_e - Model error variance
+#'   \item Mean pulse mass and width across subjects
+#'   \item Mean baseline and halflife across subjects
+#'   \item Subject-to-subject SD of mean mass and width
+#'   \item Subject-to-subject SD of baseline and halflife
+#'   \item Pulse-to-pulse SD of mass and width (shared across subjects)
+#'   \item Model error variance
 #' }
 #'
 #' \strong{Subject Level (for each subject):}
 #' \itemize{
-#'   \item \u03BC_\u03B1,s, \u03BC_\u03C9,s - Subject-specific mean pulse mass and width
-#'   \item \u03B8_b,s, \u03B8_h,s - Subject-specific baseline and halflife
+#'   \item Subject-specific mean pulse mass and width
+#'   \item Subject-specific baseline and halflife
 #'   \item Number of pulses (varies by MCMC iteration)
 #' }
 #'
 #' \strong{Pulse Level (for each pulse within each subject):}
 #' \itemize{
-#'   \item \u03B1_k, \u03C9_k - Individual pulse mass and width
-#'   \item \u03C4_k - Pulse location (time)
-#'   \item \u03BA_\u03B1,k, \u03BA_\u03C9,k - T-distribution scale parameters
+#'   \item Individual pulse mass and width
+#'   \item Pulse location (time)
+#'   \item T-distribution scale parameters for pulse variability
 #' }
 #'
 #' @importFrom tibble as_tibble
@@ -357,13 +357,13 @@ summary.population_fit <- function(object, diagnostics = TRUE, ...) {
     # Flag parameters with low ESS
     low_ess <- diag[diag$ess < 100, ]
     if (nrow(low_ess) > 0) {
-      cat("\n⚠ Parameters with low ESS:\n")
+      cat("\n[WARNING] Parameters with low ESS:\n")
       for (i in seq_len(nrow(low_ess))) {
         cat(sprintf("  %s: ESS = %.0f\n", low_ess$parameter[i], low_ess$ess[i]))
       }
       cat("\nConsider running longer or adjusting proposal variances.\n")
     } else {
-      cat("\n✓ All parameters have adequate ESS\n")
+      cat("\n[OK] All parameters have adequate ESS\n")
     }
     cat("\n")
   }

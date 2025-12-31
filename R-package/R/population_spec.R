@@ -10,9 +10,9 @@
 #' This function specifies priors, starting values, and proposal variances for
 #' hierarchical Bayesian modeling of pulsatile hormone data across multiple
 #' subjects. The population model includes:
-#' - Population-level means (\u03BC_\u03B1, \u03BC_\u03C9, \u03B8_b, \u03B8_h)
-#' - Subject-to-subject variation (\u03C5_\u03B1, \u03C5_\u03C9, \u03C3_b, \u03C3_h)
-#' - Pulse-to-pulse variation (\u03C3_\u03B1, \u03C3_\u03C9)
+#' - Population-level means for pulse mass, width, baseline, and halflife
+#' - Subject-to-subject variation parameters
+#' - Pulse-to-pulse variation parameters
 #'
 #' @param location_prior_type Takes on two values: "strauss" (default) and
 #'   "order-statistic". "strauss" uses the Strauss interacting point-process
@@ -20,20 +20,20 @@
 #'   "prior_location_gamma", and "prior_location_range".
 #'   "order-statistic" uses every third order statistic of a Uniform
 #'   distribution for the pulse location prior.
-#' @param prior_mass_mean_mean Prior mean for population mean pulse mass (\u03BC_\u03B1)
+#' @param prior_mass_mean_mean Prior mean for population mean pulse mass
 #' @param prior_mass_mean_var Prior variance for population mean pulse mass
-#' @param prior_width_mean_mean Prior mean for population mean pulse width (\u03BC_\u03C9)
+#' @param prior_width_mean_mean Prior mean for population mean pulse width
 #' @param prior_width_mean_var Prior variance for population mean pulse width
-#' @param prior_baseline_mean_mean Prior mean for population baseline (\u03B8_b)
+#' @param prior_baseline_mean_mean Prior mean for population baseline
 #' @param prior_baseline_mean_var Prior variance for population baseline
-#' @param prior_halflife_mean_mean Prior mean for population halflife (\u03B8_h)
+#' @param prior_halflife_mean_mean Prior mean for population halflife
 #' @param prior_halflife_mean_var Prior variance for population halflife
-#' @param prior_mass_mean_sd_max Upper bound (uniform prior) for subject-to-subject SD of mean mass (\u03C5_\u03B1)
-#' @param prior_width_mean_sd_max Upper bound (uniform prior) for subject-to-subject SD of mean width (\u03C5_\u03C9)
-#' @param prior_baseline_sd_max Upper bound (uniform prior) for subject-to-subject SD of baseline (\u03C3_b)
-#' @param prior_halflife_sd_max Upper bound (uniform prior) for subject-to-subject SD of halflife (\u03C3_h)
-#' @param prior_mass_sd_max Upper bound (uniform prior) for pulse-to-pulse SD of mass (\u03C3_\u03B1)
-#' @param prior_width_sd_max Upper bound (uniform prior) for pulse-to-pulse SD of width (\u03C3_\u03C9)
+#' @param prior_mass_mean_sd_max Upper bound (uniform prior) for subject-to-subject SD of mean mass
+#' @param prior_width_mean_sd_max Upper bound (uniform prior) for subject-to-subject SD of mean width
+#' @param prior_baseline_sd_max Upper bound (uniform prior) for subject-to-subject SD of baseline
+#' @param prior_halflife_sd_max Upper bound (uniform prior) for subject-to-subject SD of halflife
+#' @param prior_mass_sd_max Upper bound (uniform prior) for pulse-to-pulse SD of mass
+#' @param prior_width_sd_max Upper bound (uniform prior) for pulse-to-pulse SD of width
 #' @param prior_error_alpha Gamma shape parameter for model error variance
 #' @param prior_error_beta Gamma rate parameter for model error variance
 #' @param prior_mean_pulse_count Mean of Poisson prior on pulse count
