@@ -212,11 +212,13 @@ inline void JointBirthDeathProcess::sample_response(Patient *driver_patient,
         // Modified birth rate at this position
         double birth_rate_at_pos = birth_rate * (1.0 + lambda_at_pos);
 
+        // Use log-scale arithmetic to avoid numerical overflow/underflow
+        // in pow(strauss_repulsion, sum_s_r) for extreme values
         int sum_s_r = response_patient->calc_sr_strauss(position);
-        double papas_cif = birth_rate_at_pos *
-                          pow(response_patient->priors.strauss_repulsion, sum_s_r);
-        double b_ratio = papas_cif / birth_rate;
-        accept_pos = (Rf_runif(0, 1) < b_ratio) ? 1 : 0;
+        double log_papas_cif = log(birth_rate_at_pos) +
+                              sum_s_r * log(response_patient->priors.strauss_repulsion);
+        double log_b_ratio = log_papas_cif - log(birth_rate);
+        accept_pos = (log(Rf_runif(0, 1)) < log_b_ratio) ? 1 : 0;
       }
 
       if (accept_pos == 1) {

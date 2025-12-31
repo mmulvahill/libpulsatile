@@ -289,6 +289,12 @@ inline void joint_mcmc_iteration(Patient *driver_patient,
   // Response error variance
   samplers.response_draw_error.sample(response_patient);
 
+  // **CRITICAL**: Update lambda values after response pulse location changes
+  // Response pulses may have moved, so recalculate their coupling intensity
+  for (auto& response_pulse : response_patient->pulses) {
+    update_single_lambda(driver_patient->pulses, response_pulse, *assoc_est);
+  }
+
 
   //
   // STAGE 3: Association parameter updates
