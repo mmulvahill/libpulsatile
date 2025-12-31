@@ -80,7 +80,7 @@ class Pop_DrawBaselineHalflifeSD :
 
 // parameter_support()
 //   Check if proposal is within uniform prior support [0, max]
-bool Pop_DrawBaselineHalflifeSD::parameter_support(double val, Population *population) {
+inline bool Pop_DrawBaselineHalflifeSD::parameter_support(double val, Population *population) {
   double max_val = (population->priors).*get_max_;
   return (val > 0.0 && val < max_val);
 }
@@ -90,7 +90,7 @@ bool Pop_DrawBaselineHalflifeSD::parameter_support(double val, Population *popul
 //   Calculate acceptance ratio for MH sampler
 //   Same logic as Pop_DrawMeanSDs but for baseline/halflife
 //
-double Pop_DrawBaselineHalflifeSD::posterior_function(Population *population, 
+inline double Pop_DrawBaselineHalflifeSD::posterior_function(Population *population, 
                                                       double proposal, 
                                                       Population *notused) {
 

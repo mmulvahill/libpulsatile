@@ -87,7 +87,7 @@ class Pop_DrawPulseSDs :
 
 // parameter_support()
 //   Check if proposal is within uniform prior support [0, max]
-bool Pop_DrawPulseSDs::parameter_support(double val, Population *population) {
+inline bool Pop_DrawPulseSDs::parameter_support(double val, Population *population) {
   double max_val = (population->priors).*get_max_;
   return (val > 0.0 && val < max_val);
 }
@@ -95,13 +95,13 @@ bool Pop_DrawPulseSDs::parameter_support(double val, Population *population) {
 
 // posterior_function()
 //   Calculate acceptance ratio for MH sampler
-//   
+//
 //   For truncated t-distribution likelihood:
 //     f(x | μ, σ, κ) ∝ (1/σ) * exp(-0.5 * κ * (x-μ)²/σ²) / Φ(μ*sqrt(κ)/σ)
-//   
+//
 //   where Φ is the standard normal CDF (normalizing constant for truncation)
 //
-double Pop_DrawPulseSDs::posterior_function(Population *population, 
+inline double Pop_DrawPulseSDs::posterior_function(Population *population, 
                                             double proposal, 
                                             Population *notused) {
 

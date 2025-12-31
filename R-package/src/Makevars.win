@@ -1,2 +1,7 @@
+# Include C++ unit test files from tests/ subdirectory
+# Exclude tests/tests.cpp (standalone runner, use test-runner.cpp for R package)
+SOURCES = $(wildcard *.cpp) $(filter-out tests/tests.cpp, $(wildcard tests/*.cpp))
+OBJECTS = $(SOURCES:.cpp=.o)
+
 PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -fopenmp
-PKG_CXXFLAGS = -I../inst/include/ -DNORINSIDE -DARMA_64BIT_WORD
+PKG_CXXFLAGS = -I../inst/include/ -I../inst/include/testing -DNORINSIDE -DARMA_64BIT_WORD

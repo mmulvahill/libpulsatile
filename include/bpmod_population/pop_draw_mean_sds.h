@@ -80,7 +80,7 @@ class Pop_DrawMeanSDs :
 
 // parameter_support()
 //   Check if proposal is within uniform prior support [0, max]
-bool Pop_DrawMeanSDs::parameter_support(double val, Population *population) {
+inline bool Pop_DrawMeanSDs::parameter_support(double val, Population *population) {
   double max_val = (population->priors).*get_max_;
   return (val > 0.0 && val < max_val);
 }
@@ -88,15 +88,15 @@ bool Pop_DrawMeanSDs::parameter_support(double val, Population *population) {
 
 // posterior_function()
 //   Calculate acceptance ratio for MH sampler
-//   
+//
 //   Log posterior ratio:
 //     log(π(υ* | data) / π(υ | data))
 //     = log(L(data | υ*) / L(data | υ)) + log(π(υ*) / π(υ))
 //     = log(L(data | υ*) / L(data | υ))  (uniform prior cancels)
-//     
+//
 //   where L(data | υ) = Π_i N(θ_i | μ, υ²)
 //
-double Pop_DrawMeanSDs::posterior_function(Population *population, 
+inline double Pop_DrawMeanSDs::posterior_function(Population *population, 
                                            double proposal, 
                                            Population *notused) {
 
