@@ -83,7 +83,7 @@ class SS_DrawSDRandomEffects :
 //   Defines whether the proposal value is within the parameter support
 //   For the Cauchy this is just positive
 //    TO DO: can we remove the Patient part of the function?
-bool SS_DrawSDRandomEffects::parameter_support(double val, Patient *patient) {
+inline bool SS_DrawSDRandomEffects::parameter_support(double val, Patient *patient) {
 
  // PatientPriors *priors = &patient->priors;
   //double patient_sd_param = (*priors).*sd_param_;
@@ -97,8 +97,8 @@ bool SS_DrawSDRandomEffects::parameter_support(double val, Patient *patient) {
 //   Calculates the acceptance ratio for use in modified metropolis hastings
 //   sampler (inherited SS_DrawSDRandomEffects::sample() function)
 //
-double SS_DrawSDRandomEffects::posterior_function(Patient *patient, 
-                                                  double proposal, 
+inline double SS_DrawSDRandomEffects::posterior_function(Patient *patient,
+                                                  double proposal,
                                                   Patient *notused) {
 
   double stdx_old    = 0.0;
