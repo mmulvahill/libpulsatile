@@ -286,6 +286,10 @@ inline void joint_mcmc_iteration(Patient *driver_patient,
   samplers.response_draw_tvarscale_mass->sample_pulses(response_patient, iteration);
   samplers.response_draw_tvarscale_width->sample_pulses(response_patient, iteration);
 
+  // Update lambda values after response pulse locations may have changed
+  // This ensures diagnostic output reflects correct lambda for each pulse position
+  update_lambda_values(driver_patient->pulses, response_patient->pulses, *assoc_est);
+
   // Response error variance
   samplers.response_draw_error.sample(response_patient);
 
