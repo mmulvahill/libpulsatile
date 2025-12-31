@@ -54,15 +54,17 @@ parameter estimates and acceptance rates (default: FALSE).}
 }
 \value{
 An object of class \code{population_fit} containing:
-  \item{model}{Model type ("population")}
-  \item{call}{The matched call}
-  \item{population_chain}{Data frame of population-level parameter samples}
-  \item{subject_chains}{List of data frames, one per subject, with subject-level parameters}
-  \item{pulse_chains}{List of lists - for each subject, a list of pulse parameter samples}
-  \item{data}{The original data}
-  \item{num_subjects}{Number of subjects}
-  \item{options}{List of options used in fitting}
-  \item{spec}{The specification object used}
+\itemize{
+  \item \strong{model}: Model type ("population")
+  \item \strong{call}: The matched call
+  \item \strong{population_chain}: Data frame of population-level parameter samples
+  \item \strong{subject_chains}: List of data frames, one per subject, with subject-level parameters
+  \item \strong{pulse_chains}: List of lists - for each subject, a list of pulse parameter samples
+  \item \strong{data}: The original data
+  \item \strong{num_subjects}: Number of subjects
+  \item \strong{options}: List of options used in fitting
+  \item \strong{spec}: The specification object used
+}
 }
 \description{
 Fits a hierarchical Bayesian deconvolution model for pulsatile hormone data
