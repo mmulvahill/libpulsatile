@@ -58,14 +58,14 @@ class PulseEstimates {
     }
 
     // For returning to chain (single hormone model)
-    arma::rowvec get_vector_of_values()
+    arma::rowvec get_vector_of_values() const
     {
       arma::rowvec out { time, mass, width, tvarscale_mass, tvarscale_width };
       return out;
     }
 
     // For returning to chain (joint hormone model - includes lambda)
-    arma::rowvec get_vector_of_values_with_lambda()
+    arma::rowvec get_vector_of_values_with_lambda() const
     {
       arma::rowvec out { time, mass, width, tvarscale_mass, tvarscale_width, lambda };
       return out;
