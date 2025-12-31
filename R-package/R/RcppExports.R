@@ -34,6 +34,10 @@ jointsinglesubject_ <- function(driver_concentration, driver_time, response_conc
     .Call(`_bayespulse_jointsinglesubject_`, driver_concentration, driver_time, response_concentration, response_time, location_prior, driver_priors, response_priors, association_priors, proposalvars, driver_startingvals, response_startingvals, association_startingvals, mcmc_iterations, thin, burnin, verbose, pv_adjust_iter, pv_adjust_max_iter, bivariate_pv_target_ratio, univariate_pv_target_ratio)
 }
 
+population_ <- function(subject_data_list, location_prior, population_priors, proposalvars, population_startingvals, subject_startingvals_list, mcmc_iterations, thin, burnin, verbose, pv_adjust_iter, pv_adjust_max_iter, bivariate_pv_target_ratio, univariate_pv_target_ratio) {
+    .Call(`_bayespulse_population_`, subject_data_list, location_prior, population_priors, proposalvars, population_startingvals, subject_startingvals_list, mcmc_iterations, thin, burnin, verbose, pv_adjust_iter, pv_adjust_max_iter, bivariate_pv_target_ratio, univariate_pv_target_ratio)
+}
+
 singlesubject_ <- function(concentration, time, location_prior, inpriors, proposalvars, startingvals, mcmc_iterations, thin, burnin, verbose, pv_adjust_iter, pv_adjust_max_iter, bivariate_pv_target_ratio, univariate_pv_target_ratio) {
     .Call(`_bayespulse_singlesubject_`, concentration, time, location_prior, inpriors, proposalvars, startingvals, mcmc_iterations, thin, burnin, verbose, pv_adjust_iter, pv_adjust_max_iter, bivariate_pv_target_ratio, univariate_pv_target_ratio)
 }

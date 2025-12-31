@@ -41,6 +41,30 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// population_
+Rcpp::List population_(Rcpp::List subject_data_list, Rcpp::CharacterVector location_prior, Rcpp::List population_priors, Rcpp::List proposalvars, Rcpp::List population_startingvals, Rcpp::List subject_startingvals_list, int mcmc_iterations, int thin, int burnin, bool verbose, int pv_adjust_iter, int pv_adjust_max_iter, double bivariate_pv_target_ratio, double univariate_pv_target_ratio);
+RcppExport SEXP _bayespulse_population_(SEXP subject_data_listSEXP, SEXP location_priorSEXP, SEXP population_priorsSEXP, SEXP proposalvarsSEXP, SEXP population_startingvalsSEXP, SEXP subject_startingvals_listSEXP, SEXP mcmc_iterationsSEXP, SEXP thinSEXP, SEXP burninSEXP, SEXP verboseSEXP, SEXP pv_adjust_iterSEXP, SEXP pv_adjust_max_iterSEXP, SEXP bivariate_pv_target_ratioSEXP, SEXP univariate_pv_target_ratioSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type subject_data_list(subject_data_listSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type location_prior(location_priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type population_priors(population_priorsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type proposalvars(proposalvarsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type population_startingvals(population_startingvalsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type subject_startingvals_list(subject_startingvals_listSEXP);
+    Rcpp::traits::input_parameter< int >::type mcmc_iterations(mcmc_iterationsSEXP);
+    Rcpp::traits::input_parameter< int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< int >::type pv_adjust_iter(pv_adjust_iterSEXP);
+    Rcpp::traits::input_parameter< int >::type pv_adjust_max_iter(pv_adjust_max_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type bivariate_pv_target_ratio(bivariate_pv_target_ratioSEXP);
+    Rcpp::traits::input_parameter< double >::type univariate_pv_target_ratio(univariate_pv_target_ratioSEXP);
+    rcpp_result_gen = Rcpp::wrap(population_(subject_data_list, location_prior, population_priors, proposalvars, population_startingvals, subject_startingvals_list, mcmc_iterations, thin, burnin, verbose, pv_adjust_iter, pv_adjust_max_iter, bivariate_pv_target_ratio, univariate_pv_target_ratio));
+    return rcpp_result_gen;
+END_RCPP
+}
 // singlesubject_
 Rcpp::List singlesubject_(Rcpp::NumericVector concentration, Rcpp::NumericVector time, Rcpp::CharacterVector location_prior, Rcpp::List inpriors, Rcpp::List proposalvars, Rcpp::List startingvals, int mcmc_iterations, int thin, int burnin, bool verbose, int pv_adjust_iter, int pv_adjust_max_iter, double bivariate_pv_target_ratio, double univariate_pv_target_ratio);
 RcppExport SEXP _bayespulse_singlesubject_(SEXP concentrationSEXP, SEXP timeSEXP, SEXP location_priorSEXP, SEXP inpriorsSEXP, SEXP proposalvarsSEXP, SEXP startingvalsSEXP, SEXP mcmc_iterationsSEXP, SEXP thinSEXP, SEXP burninSEXP, SEXP verboseSEXP, SEXP pv_adjust_iterSEXP, SEXP pv_adjust_max_iterSEXP, SEXP bivariate_pv_target_ratioSEXP, SEXP univariate_pv_target_ratioSEXP) {
@@ -70,6 +94,7 @@ RcppExport SEXP run_testthat_tests(void);
 
 static const R_CallMethodDef CallEntries[] = {
     {"_bayespulse_jointsinglesubject_", (DL_FUNC) &_bayespulse_jointsinglesubject_, 20},
+    {"_bayespulse_population_", (DL_FUNC) &_bayespulse_population_, 14},
     {"_bayespulse_singlesubject_", (DL_FUNC) &_bayespulse_singlesubject_, 14},
     {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
     {NULL, NULL, 0}
