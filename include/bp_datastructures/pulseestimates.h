@@ -34,8 +34,9 @@ class PulseEstimates {
     double width;
     double tvarscale_mass;   // variance scale for mass t-dist (eta)
     double tvarscale_width;  // variance scale for width t-dist (eta)
-    //double lambda; // for fsh pulse only, denomsum - NOT SURE WHAT THIS TERM IS
-                   //FOR (from Karen's code)
+
+    // For joint hormone model (response pulses only)
+    double lambda;  // Coupling intensity from driver hormone pulses
 
     // Public user-facing access function for mean_contrib. Only calculates
     // mean_contrib if input values have changed.
@@ -56,10 +57,17 @@ class PulseEstimates {
 
     }
 
-    // For returining to chain
-    arma::rowvec get_vector_of_values() 
+    // For returning to chain (single hormone model)
+    arma::rowvec get_vector_of_values() const
     {
-      arma::rowvec out { time, mass, width, tvarscale_mass, tvarscale_width}; //, lambda };
+      arma::rowvec out { time, mass, width, tvarscale_mass, tvarscale_width };
+      return out;
+    }
+
+    // For returning to chain (joint hormone model - includes lambda)
+    arma::rowvec get_vector_of_values_with_lambda() const
+    {
+      arma::rowvec out { time, mass, width, tvarscale_mass, tvarscale_width, lambda };
       return out;
     }
 
@@ -69,15 +77,15 @@ class PulseEstimates {
                    double in_width,
                    double in_tvarscale_mass,
                    double in_tvarscale_width,
-                   //double fshlambda,
                    double patient_decay,
-                   const arma::vec &data_time)
+                   const arma::vec &data_time,
+                   double in_lambda = 0.0)  // lambda defaults to 0 for single hormone
         : time            (in_time)
         , mass            (in_mass)
         , width           (in_width)
         , tvarscale_mass  (in_tvarscale_mass)
         , tvarscale_width (in_tvarscale_width)
-        //, lambda          (fshlambda)
+        , lambda          (in_lambda)
         , mean_contribution(data_time.n_elem)
       {
         mean_contribution.fill(0.);
@@ -87,10 +95,11 @@ class PulseEstimates {
         prev_width      = width;
         prev_decay_rate = patient_decay;
       }
+
     // Constructor for empty pulse object
     PulseEstimates()
       : time(0), mass(0), width(0), tvarscale_mass(0),
-        tvarscale_width(0), mean_contribution(1) 
+        tvarscale_width(0), lambda(0.0), mean_contribution(1)
       {
         mean_contribution.fill(0);
       }
