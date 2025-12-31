@@ -53,18 +53,10 @@ with small random perturbations. Each element should be a list with:
 parameter estimates and acceptance rates (default: FALSE).}
 }
 \value{
-An object of class \code{population_fit} containing:
-\itemize{
-  \item \strong{model}: Model type ("population")
-  \item \strong{call}: The matched call
-  \item \strong{population_chain}: Data frame of population-level parameter samples
-  \item \strong{subject_chains}: List of data frames, one per subject, with subject-level parameters
-  \item \strong{pulse_chains}: List of lists - for each subject, a list of pulse parameter samples
-  \item \strong{data}: The original data
-  \item \strong{num_subjects}: Number of subjects
-  \item \strong{options}: List of options used in fitting
-  \item \strong{spec}: The specification object used
-}
+An object of class \code{population_fit}, a list containing the
+  population-level MCMC chain (\code{population_chain}), subject-level chains
+  (\code{subject_chains}), pulse-level chains (\code{pulse_chains}), the
+  original data, number of subjects, fitting options, and model specification.
 }
 \description{
 Fits a hierarchical Bayesian deconvolution model for pulsatile hormone data
