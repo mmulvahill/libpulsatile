@@ -7,7 +7,7 @@
 
 **Bayesian deconvolution of pulsatile hormone concentration data**
 
-A unified Bayesian framework for analyzing pulsatile hormone secretion patterns in both single-subject and population studies. The package implements reversible jump MCMC for pulse detection and hierarchical models for multi-subject analysis.
+A unified Bayesian framework for analyzing pulsatile hormone secretion patterns in both single-subject and population studies. The package implements birth-death MCMC for trans-dimensional pulse detection and hierarchical models for multi-subject analysis.
 
 ## Features
 
