@@ -189,7 +189,7 @@ If you use this software in your research, please cite:
 @software{bayespulse,
   title = {bayespulse: Bayesian Analysis of Pulsatile Hormone Data},
   author = {Mulvahill, Matthew and Carlson, Nichole},
-  year = {2024},
+  year = {2025},
   url = {https://github.com/mmulvahill/libpulsatile}
 }
 ```

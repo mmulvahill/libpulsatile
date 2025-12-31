@@ -30,7 +30,7 @@
 
 ### ✅ COMPLETED (Phase 2 Production Features)
 
-**Core R Interface** - Implemented 12/31/2024
+**Core R Interface** - Implemented 12/31/2025
 - ✅ `population_spec()` - Specification function for priors and parameters
 - ✅ `fit_pulse_population()` - Main fitting function with comprehensive validation
 - ✅ Integration tests with simulated multi-subject data (16 test cases)
@@ -669,7 +669,7 @@ The main new code needed is:
 
 ## 6. Current Status and Next Steps
 
-### Completed (2024)
+### Completed (2025)
 
 1. ✅ **Reviewed plan** with domain experts
 2. ✅ **Implemented Phase 1** (PR #5) - Population infrastructure with data structures and samplers
