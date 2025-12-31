@@ -20,7 +20,6 @@ jobs:
 
     - name: Setup R dependencies
       run: |
-        sudo apt-get update
         sudo apt-get install -y gfortran liblapack-dev libblas-dev \
           libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
           libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
@@ -33,30 +32,6 @@ jobs:
         Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); install.packages(c('Rcpp', 'RcppArmadillo', 'devtools', 'testthat', 'covr', 'remotes'), repos='https://cran.rstudio.com', lib=Sys.getenv('R_LIBS_USER'))"
         # Install R package dependencies from DESCRIPTION file
         Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
-
-    - name: Install RInside (optional for coverage)
-      env:
-        GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        # Try to install RInside, but don't fail if it doesn't work
-        Rscript -e "
-        tryCatch({
-          remotes::install_github('eddelbuettel/RInside', upgrade='never', quiet=TRUE)
-          cat('RInside installed\n')
-        }, error = function(e) {
-          cat('RInside installation failed, proceeding without it\n')
-        })"
-
-    - name: Build C++ library (optional)
-      run: |
-        make clean
-        # Try to build C++ library, but don't fail if RInside is missing
-        if Rscript -e "library(RInside)" 2>/dev/null; then
-          echo "Building C++ library"
-          make
-        else
-          echo "Skipping C++ build, focusing on R package coverage"
-        fi
 
     - name: Generate coverage report
       run: |

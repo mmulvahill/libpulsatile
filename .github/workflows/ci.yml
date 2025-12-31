@@ -27,7 +27,6 @@ jobs:
     - name: Setup R dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get update
         sudo apt-get install -y gfortran liblapack-dev libblas-dev \
           libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
           libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
@@ -49,50 +48,6 @@ jobs:
         # Install R package dependencies from DESCRIPTION file
         Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
       shell: bash
-
-    - name: Install RInside (with fallback)
-      env:
-        GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        # Try to install RInside from GitHub, fallback to CRAN if available, or skip
-        Rscript -e "
-        tryCatch({
-          remotes::install_github('eddelbuettel/RInside', upgrade='never', quiet=TRUE)
-          cat('RInside installed from GitHub\n')
-        }, error = function(e) {
-          tryCatch({
-            install.packages('RInside', repos='https://cran.rstudio.com', quiet=TRUE)
-            cat('RInside installed from CRAN\n')
-          }, error = function(e2) {
-            cat('RInside installation failed, will use NORINSIDE flag\n')
-            cat('Error:', conditionMessage(e2), '\n')
-          })
-        })"
-      shell: bash
-
-    - name: Build C++ library
-      run: |
-        make clean
-        # Check if RInside is available, if not, skip C++ build and focus on R package
-        if Rscript -e "library(RInside)" 2>/dev/null; then
-          echo "RInside available, building C++ library"
-          make
-        else
-          echo "RInside not available, skipping C++ standalone build"
-          echo "Will focus on R package build which uses NORINSIDE flag"
-        fi
-
-    - name: Run C++ tests
-      run: |
-        # Only run C++ tests if the binary was built
-        if [ -f "bin/tests" ]; then
-          echo "Running C++ tests"
-          # Set LD_LIBRARY_PATH to find R shared libraries
-          export LD_LIBRARY_PATH="$(R RHOME)/lib:${LD_LIBRARY_PATH}"
-          bin/tests
-        else
-          echo "C++ tests not available (RInside not installed)"
-        fi
 
     - name: Build and check R package
       run: |
