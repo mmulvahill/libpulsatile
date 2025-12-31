@@ -123,8 +123,24 @@ Rcpp::List population_(Rcpp::List subject_data_list,
 
     // Extract data for this subject
     List subj_data = subject_data_list[s];
+
+    // Validate subject data structure
+    if (!subj_data.containsElementNamed("time") ||
+        !subj_data.containsElementNamed("concentration")) {
+      stop("Subject %d missing 'time' or 'concentration' field", s + 1);
+    }
+
     NumericVector time = subj_data["time"];
     NumericVector concentration = subj_data["concentration"];
+
+    // Validate vector dimensions
+    if (time.size() != concentration.size()) {
+      stop("Subject %d: time and concentration must have same length", s + 1);
+    }
+    if (time.size() == 0) {
+      stop("Subject %d has no observations", s + 1);
+    }
+
     PatientData data(time, concentration);
 
     // Extract starting values for this subject

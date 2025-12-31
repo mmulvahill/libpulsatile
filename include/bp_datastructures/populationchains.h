@@ -42,6 +42,18 @@ class PopulationChains {
       , population_chain(num_outputs, 12, arma::fill::zeros)  // 11 pop params + iteration
       , subject_chains(in_num_subjects, arma::mat(num_outputs, 6, arma::fill::zeros)) {  // 5 params + iteration per subject
 
+        // Validate MCMC configuration
+        if (in_burnin >= in_iterations) {
+          Rcpp::stop("burnin must be less than iterations");
+        }
+        if (in_thin <= 0) {
+          Rcpp::stop("thin must be positive");
+        }
+        if (num_outputs <= 0) {
+          Rcpp::stop("No outputs would be saved with these burnin/thin settings (burnin=%d, iterations=%d, thin=%d)",
+                     in_burnin, in_iterations, in_thin);
+        }
+
         iterations   = in_iterations;
         thin         = in_thin;
         burnin       = in_burnin;
