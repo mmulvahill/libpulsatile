@@ -65,33 +65,33 @@ as a prior and requires specification of "prior_mean_pulse_count",
 "order-statistic" uses every third order statistic of a Uniform
 distribution for the pulse location prior.}
 
-\item{prior_mass_mean_mean}{Prior mean for population mean pulse mass (μ_α)}
+\item{prior_mass_mean_mean}{Prior mean for population mean pulse mass (\u03BC_\u03B1)}
 
 \item{prior_mass_mean_var}{Prior variance for population mean pulse mass}
 
-\item{prior_width_mean_mean}{Prior mean for population mean pulse width (μ_ω)}
+\item{prior_width_mean_mean}{Prior mean for population mean pulse width (\u03BC_\u03C9)}
 
 \item{prior_width_mean_var}{Prior variance for population mean pulse width}
 
-\item{prior_baseline_mean_mean}{Prior mean for population baseline (θ_b)}
+\item{prior_baseline_mean_mean}{Prior mean for population baseline (\u03B8_b)}
 
 \item{prior_baseline_mean_var}{Prior variance for population baseline}
 
-\item{prior_halflife_mean_mean}{Prior mean for population halflife (θ_h)}
+\item{prior_halflife_mean_mean}{Prior mean for population halflife (\u03B8_h)}
 
 \item{prior_halflife_mean_var}{Prior variance for population halflife}
 
-\item{prior_mass_mean_sd_max}{Upper bound (uniform prior) for subject-to-subject SD of mean mass (υ_α)}
+\item{prior_mass_mean_sd_max}{Upper bound (uniform prior) for subject-to-subject SD of mean mass (\u03C5_\u03B1)}
 
-\item{prior_width_mean_sd_max}{Upper bound (uniform prior) for subject-to-subject SD of mean width (υ_ω)}
+\item{prior_width_mean_sd_max}{Upper bound (uniform prior) for subject-to-subject SD of mean width (\u03C5_\u03C9)}
 
-\item{prior_baseline_sd_max}{Upper bound (uniform prior) for subject-to-subject SD of baseline (σ_b)}
+\item{prior_baseline_sd_max}{Upper bound (uniform prior) for subject-to-subject SD of baseline (\u03C3_b)}
 
-\item{prior_halflife_sd_max}{Upper bound (uniform prior) for subject-to-subject SD of halflife (σ_h)}
+\item{prior_halflife_sd_max}{Upper bound (uniform prior) for subject-to-subject SD of halflife (\u03C3_h)}
 
-\item{prior_mass_sd_max}{Upper bound (uniform prior) for pulse-to-pulse SD of mass (σ_α)}
+\item{prior_mass_sd_max}{Upper bound (uniform prior) for pulse-to-pulse SD of mass (\u03C3_\u03B1)}
 
-\item{prior_width_sd_max}{Upper bound (uniform prior) for pulse-to-pulse SD of width (σ_ω)}
+\item{prior_width_sd_max}{Upper bound (uniform prior) for pulse-to-pulse SD of width (\u03C3_\u03C9)}
 
 \item{prior_error_alpha}{Gamma shape parameter for model error variance}
 
@@ -178,38 +178,10 @@ fitting a population model with fit_pulse_population().
 This function specifies priors, starting values, and proposal variances for
 hierarchical Bayesian modeling of pulsatile hormone data across multiple
 subjects. The population model includes:
-- Population-level means (μ_α, μ_ω, θ_b, θ_h)
-- Subject-to-subject variation (υ_α, υ_ω, σ_b, σ_h)  
-- Pulse-to-pulse variation (σ_α, σ_ω)
+- Population-level means (\u03BC_\u03B1, \u03BC_\u03C9, \u03B8_b, \u03B8_h)
+- Subject-to-subject variation (\u03C5_\u03B1, \u03C5_\u03C9, \u03C3_b, \u03C3_h)
+- Pulse-to-pulse variation (\u03C3_\u03B1, \u03C3_\u03C9)
 }
-\section{Population-level priors}{
-
-}
-
-\section{Subject-to-subject variation priors}{
-
-}
-
-\section{Pulse-to-pulse variation priors}{
-
-}
-
-\section{Error and location priors}{
-
-}
-
-\section{Population starting values}{
-
-}
-
-\section{Proposal variances for population parameters}{
-
-}
-
-\section{Proposal variances for subject-level parameters}{
-
-}
-
 \examples{
 # Create a population specification with default values
 pop_spec <- population_spec()

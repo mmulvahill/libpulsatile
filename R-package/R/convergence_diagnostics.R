@@ -2,6 +2,9 @@
 # convergence_diagnostics.R - MCMC convergence diagnostic functions
 #-------------------------------------------------------------------------------
 
+# Declare global variables to avoid R CMD check NOTEs for NSE in ggplot2
+utils::globalVariables(c("iteration", "value", "lag", "acf"))
+
 #' Calculate Effective Sample Size (ESS)
 #'
 #' Computes the effective sample size for an MCMC chain, accounting for
@@ -24,6 +27,7 @@
 #'   \item ESS > 1000: Excellent
 #' }
 #'
+#' @importFrom stats acf na.pass sd var
 #' @export
 effective_sample_size <- function(x, max_lag = NULL) {
   

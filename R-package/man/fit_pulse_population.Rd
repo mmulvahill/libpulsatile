@@ -44,11 +44,13 @@ with small random perturbations. Each element should be a list with:
 
 \item{thin}{Thinning interval - save every \code{thin}th sample (default: 50).}
 
-\item{burnin}{Number of initial samples to discard (default: 10% of iters).}
+\item{burnin}{Number of initial samples to discard (default: 10%% of iters).}
 
-\item{use_tibble}{Return chains as tibble data frames (default: TRUE).}
+\item{use_tibble}{Return chains as tibble data frames for prettier printing
+(default: TRUE). Requires tibble package.}
 
-\item{verbose}{Print diagnostic output every 5000 iterations (default: FALSE).}
+\item{verbose}{Print diagnostic output every 5000 iterations including
+parameter estimates and acceptance rates (default: FALSE).}
 }
 \value{
 An object of class \code{population_fit} containing:
@@ -72,26 +74,26 @@ The population model estimates a three-level hierarchy:
 
 \strong{Population Level:}
 \itemize{
-  \item μ_α, μ_ω - Mean pulse mass and width across subjects
-  \item θ_b, θ_h - Mean baseline and halflife across subjects
-  \item υ_α, υ_ω - Subject-to-subject SD of mean mass and width
-  \item σ_b, σ_h - Subject-to-subject SD of baseline and halflife
-  \item σ_α, σ_ω - Pulse-to-pulse SD of mass and width (shared)
-  \item σ²_e - Model error variance
+  \item \u03BC_\u03B1, \u03BC_\u03C9 - Mean pulse mass and width across subjects
+  \item \u03B8_b, \u03B8_h - Mean baseline and halflife across subjects
+  \item \u03C5_\u03B1, \u03C5_\u03C9 - Subject-to-subject SD of mean mass and width
+  \item \u03C3_b, \u03C3_h - Subject-to-subject SD of baseline and halflife
+  \item \u03C3_\u03B1, \u03C3_\u03C9 - Pulse-to-pulse SD of mass and width (shared)
+  \item \u03C3\u00B2_e - Model error variance
 }
 
 \strong{Subject Level (for each subject):}
 \itemize{
-  \item μ_α,s, μ_ω,s - Subject-specific mean pulse mass and width
-  \item θ_b,s, θ_h,s - Subject-specific baseline and halflife
+  \item \u03BC_\u03B1,s, \u03BC_\u03C9,s - Subject-specific mean pulse mass and width
+  \item \u03B8_b,s, \u03B8_h,s - Subject-specific baseline and halflife
   \item Number of pulses (varies by MCMC iteration)
 }
 
 \strong{Pulse Level (for each pulse within each subject):}
 \itemize{
-  \item α_k, ω_k - Individual pulse mass and width
-  \item τ_k - Pulse location (time)
-  \item κ_α,k, κ_ω,k - T-distribution scale parameters
+  \item \u03B1_k, \u03C9_k - Individual pulse mass and width
+  \item \u03C4_k - Pulse location (time)
+  \item \u03BA_\u03B1,k, \u03BA_\u03C9,k - T-distribution scale parameters
 }
 }
 \examples{
