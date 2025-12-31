@@ -85,7 +85,7 @@ class SS_DrawTVarScale :
 
 // parameter_support()
 //   Defines whether the proposal value is within the parameter support
-bool SS_DrawTVarScale::parameter_support(double val, Patient *notused) {
+inline bool SS_DrawTVarScale::parameter_support(double val, Patient *notused) {
   return (val > 0.0);
 }
 
@@ -93,8 +93,8 @@ bool SS_DrawTVarScale::parameter_support(double val, Patient *notused) {
 // posterior_function()
 //   Calculates the acceptance ratio for use in modified metropolis hastings
 //   sampler (inherited SS_DrawTVarScale::sample() function)
-double SS_DrawTVarScale::posterior_function(PulseEstimates *pulse, 
-                                            double proposal, 
+inline double SS_DrawTVarScale::posterior_function(PulseEstimates *pulse,
+                                            double proposal,
                                             Patient *patient) {
 
   double old_gamma   = 0.0;
