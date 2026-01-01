@@ -16,6 +16,10 @@ A unified Bayesian framework for analyzing pulsatile hormone secretion patterns 
   - Population-level parameters (means and variances)
   - Subject-specific parameters with shrinkage
   - Individual pulse characteristics
+- **Joint Hormone Model**: Coupled analysis of driver-response hormone pairs
+  - Driver pulses influence response pulse occurrence
+  - Coupling strength (ρ) and decay rate (ν) estimation
+  - Simultaneous deconvolution of both hormones
 - **MCMC Diagnostics**: Comprehensive convergence assessment tools
   - Effective Sample Size (ESS) calculation
   - Gelman-Rubin diagnostics
@@ -200,7 +204,7 @@ GPL (>= 2)
 
 ## Authors
 
-- **Matthew Mulvahill** - *Creator and Maintainer* - matthew.mulvahill@ucdenver.edu
+- **Matthew Mulvahill** - *Creator and Maintainer* - matt@mulvahill.com
 - **Nichole Carlson** - *Author and Thesis Supervisor*
 
 ## Project Status
