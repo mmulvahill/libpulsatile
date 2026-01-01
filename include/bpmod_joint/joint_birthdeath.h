@@ -137,11 +137,14 @@ inline void JointBirthDeathProcess::sample_response(Patient *driver_patient,
 
     // Calculate death rates
     pulse_count = response_patient->get_pulsecount();
-    arma::vec partial_likelihood = response_patient->get_partial_likelihood(true);
+    // NOTE: Use false (not true) because response patient stores data in patient.data.concentration
+    // and pulses in patient.pulses (not patient.responses). The response_hormone=true mode is for
+    // single-patient models where both driver and response are in one Patient object.
+    arma::vec partial_likelihood = response_patient->get_partial_likelihood(false);
 
     arma::vec death_rates(pulse_count);
     if (strauss == 1 && pulse_count > 1) {
-      death_rates = partial_likelihood - response_patient->likelihood(true);
+      death_rates = partial_likelihood - response_patient->likelihood(false);
     } else if (pulse_count == 1) {
       death_rates(0) = -1e300;
     } else if (pulse_count == 0) {

@@ -13,13 +13,13 @@ pulse_spec() and fit_pulse().
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/BayesPulse/bayespulse}
-  \item Report bugs at \url{https://github.com/BayesPulse/bayespulse/issues}
+  \item \url{https://github.com/mmulvahill/libpulsatile}
+  \item Report bugs at \url{https://github.com/mmulvahill/libpulsatile/issues}
 }
 
 }
 \author{
-\strong{Maintainer}: Matt Mulvahill \email{matthew.mulvahill@ucdenver.edu}
+\strong{Maintainer}: Matt Mulvahill \email{matt@mulvahill.com}
 
 Authors:
 \itemize{

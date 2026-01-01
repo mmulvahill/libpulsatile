@@ -144,17 +144,21 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
   //
   // Initialize association parameters
   //
-  AssociationPriors assoc_priors(
-    Rcpp::as<double>(association_priors["log_rho_mean"]),
-    Rcpp::as<double>(association_priors["log_rho_var"]),
-    Rcpp::as<double>(association_priors["log_nu_mean"]),
-    Rcpp::as<double>(association_priors["log_nu_var"])
-  );
 
-  AssociationEstimates assoc_est(
-    Rcpp::as<double>(association_startingvals["rho"]),
-    Rcpp::as<double>(association_startingvals["nu"])
-  );
+  // Use index-based access for association parameters
+  // Note: Name-based access fails for these lists (they don't work with Rcpp::List["name"])
+  // Order matches the wrapper: log_rho_mean, log_rho_var, log_nu_mean, log_nu_var
+  double log_rho_mean = Rcpp::as<double>(association_priors[0]);
+  double log_rho_var = Rcpp::as<double>(association_priors[1]);
+  double log_nu_mean = Rcpp::as<double>(association_priors[2]);
+  double log_nu_var = Rcpp::as<double>(association_priors[3]);
+
+  // Order matches the wrapper: rho, nu
+  double sv_rho = Rcpp::as<double>(association_startingvals[0]);
+  double sv_nu = Rcpp::as<double>(association_startingvals[1]);
+
+  AssociationPriors assoc_priors(log_rho_mean, log_rho_var, log_nu_mean, log_nu_var);
+  AssociationEstimates assoc_est(sv_rho, sv_nu);
 
   //
   // Initialize MCMC samplers
@@ -248,13 +252,26 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
   if (verbose) Rcpp::Rcout << "MCMC complete!" << std::endl;
 
   //
+  // Convert MatrixVector to R List (each arma::mat needs to be converted to NumericMatrix)
+  //
+  Rcpp::List driver_pulse_list(driver_pulse_chains.size());
+  for (size_t i = 0; i < driver_pulse_chains.size(); i++) {
+    driver_pulse_list[i] = Rcpp::wrap(driver_pulse_chains[i]);
+  }
+
+  Rcpp::List response_pulse_list(response_pulse_chains.size());
+  for (size_t i = 0; i < response_pulse_chains.size(); i++) {
+    response_pulse_list[i] = Rcpp::wrap(response_pulse_chains[i]);
+  }
+
+  //
   // Return results
   //
   return Rcpp::List::create(
     Rcpp::Named("driver_fixed_effects") = driver_fixed_effects_chain,
-    Rcpp::Named("driver_pulses") = driver_pulse_chains,
+    Rcpp::Named("driver_pulses") = driver_pulse_list,
     Rcpp::Named("response_fixed_effects") = response_fixed_effects_chain,
-    Rcpp::Named("response_pulses") = response_pulse_chains,
+    Rcpp::Named("response_pulses") = response_pulse_list,
     Rcpp::Named("association") = association_chain,
     Rcpp::Named("driver_colnames") = Rcpp::CharacterVector::create(
       "baseline", "halflife", "mass_mean", "width_mean", "errorsq"),
