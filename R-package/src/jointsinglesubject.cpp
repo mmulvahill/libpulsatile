@@ -144,17 +144,38 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
   //
   // Initialize association parameters
   //
-  AssociationPriors assoc_priors(
-    Rcpp::as<double>(association_priors["log_rho_mean"]),
-    Rcpp::as<double>(association_priors["log_rho_var"]),
-    Rcpp::as<double>(association_priors["log_nu_mean"]),
-    Rcpp::as<double>(association_priors["log_nu_var"])
-  );
 
-  AssociationEstimates assoc_est(
-    Rcpp::as<double>(association_startingvals["rho"]),
-    Rcpp::as<double>(association_startingvals["nu"])
-  );
+  // Validate association_priors list structure
+  if (association_priors.size() != 4) {
+    Rcpp::stop("association_priors must have exactly 4 elements (log_rho_mean, log_rho_var, log_nu_mean, log_nu_var)");
+  }
+  if (!association_priors.containsElementNamed("log_rho_mean") ||
+      !association_priors.containsElementNamed("log_rho_var") ||
+      !association_priors.containsElementNamed("log_nu_mean") ||
+      !association_priors.containsElementNamed("log_nu_var")) {
+    Rcpp::stop("association_priors missing required elements: log_rho_mean, log_rho_var, log_nu_mean, log_nu_var");
+  }
+
+  // Use name-based access for clarity and safety
+  double log_rho_mean = Rcpp::as<double>(association_priors["log_rho_mean"]);
+  double log_rho_var = Rcpp::as<double>(association_priors["log_rho_var"]);
+  double log_nu_mean = Rcpp::as<double>(association_priors["log_nu_mean"]);
+  double log_nu_var = Rcpp::as<double>(association_priors["log_nu_var"]);
+
+  // Validate association_startingvals list structure
+  if (association_startingvals.size() != 2) {
+    Rcpp::stop("association_startingvals must have exactly 2 elements (rho, nu)");
+  }
+  if (!association_startingvals.containsElementNamed("rho") ||
+      !association_startingvals.containsElementNamed("nu")) {
+    Rcpp::stop("association_startingvals missing required elements: rho, nu");
+  }
+
+  double sv_rho = Rcpp::as<double>(association_startingvals["rho"]);
+  double sv_nu = Rcpp::as<double>(association_startingvals["nu"]);
+
+  AssociationPriors assoc_priors(log_rho_mean, log_rho_var, log_nu_mean, log_nu_var);
+  AssociationEstimates assoc_est(sv_rho, sv_nu);
 
   //
   // Initialize MCMC samplers
@@ -248,13 +269,26 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
   if (verbose) Rcpp::Rcout << "MCMC complete!" << std::endl;
 
   //
+  // Convert MatrixVector to R List (each arma::mat needs to be converted to NumericMatrix)
+  //
+  Rcpp::List driver_pulse_list(driver_pulse_chains.size());
+  for (size_t i = 0; i < driver_pulse_chains.size(); i++) {
+    driver_pulse_list[i] = Rcpp::wrap(driver_pulse_chains[i]);
+  }
+
+  Rcpp::List response_pulse_list(response_pulse_chains.size());
+  for (size_t i = 0; i < response_pulse_chains.size(); i++) {
+    response_pulse_list[i] = Rcpp::wrap(response_pulse_chains[i]);
+  }
+
+  //
   // Return results
   //
   return Rcpp::List::create(
     Rcpp::Named("driver_fixed_effects") = driver_fixed_effects_chain,
-    Rcpp::Named("driver_pulses") = driver_pulse_chains,
+    Rcpp::Named("driver_pulses") = driver_pulse_list,
     Rcpp::Named("response_fixed_effects") = response_fixed_effects_chain,
-    Rcpp::Named("response_pulses") = response_pulse_chains,
+    Rcpp::Named("response_pulses") = response_pulse_list,
     Rcpp::Named("association") = association_chain,
     Rcpp::Named("driver_colnames") = Rcpp::CharacterVector::create(
       "baseline", "halflife", "mass_mean", "width_mean", "errorsq"),
