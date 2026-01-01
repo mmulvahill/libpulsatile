@@ -1,6 +1,6 @@
 # Population Model Performance Benchmark Report
 
-**Date:** December 31, 2024
+**Date:** December 31, 2025
 **Package:** bayespulse v0.0.2
 **Platform:** Linux 6.14.0-37-generic
 
@@ -221,5 +221,5 @@ The population model is:
 
 ---
 
-*Benchmark conducted on December 31, 2024*
+*Benchmark conducted on December 31, 2025*
 *All timings are single-threaded; parallel implementation could further improve performance*
