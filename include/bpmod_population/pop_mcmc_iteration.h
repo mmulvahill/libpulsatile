@@ -191,6 +191,16 @@ inline void population_mcmc_iteration(Population *population,
     subject.estimates.mass_sd  = population->estimates.mass_sd;
     subject.estimates.width_sd = population->estimates.width_sd;
 
+    // Propagate the pulse-count (birth-rate) and Strauss priors from the
+    // population to the subject. The per-subject PatientPriors are built with
+    // the population constructor, which hardcodes these to 0; without this the
+    // birth-death total_birth_rate is identically 0, no pulse can be born, and
+    // every subject collapses to a single pulse - biasing baseline/mass high
+    // and halflife low. (PopulationPriors carries these as pulse_count_prior.)
+    subject.priors.pulse_count             = population->priors.pulse_count_prior;
+    subject.priors.strauss_repulsion       = population->priors.strauss_repulsion;
+    subject.priors.strauss_repulsion_range = population->priors.strauss_repulsion_range;
+
     // Birth-death process for pulse count
     samplers.birth_death.sample(&subject, false, iteration);
 
@@ -216,25 +226,37 @@ inline void population_mcmc_iteration(Population *population,
   samplers.draw_pop_bh_means.sample(population);
 
   // Subject-to-subject SDs (MH samplers)
+  // NOTE: the population is passed as BOTH sampling_unit and container. The
+  // MH parameter_support() reads the uniform-prior upper bound (*_sd_max) from
+  // the container; the 3-arg sample() overload would default-construct an empty
+  // Population whose PopulationPriors leaves those bounds uninitialized, causing
+  // every proposal to be rejected and the SD chains to freeze at their starting
+  // values. Passing the real population as the container fixes this.
   samplers.draw_pop_mass_mean_sd->sample(population,
                                          &population->estimates.mass_mean_sd,
+                                         population,
                                          iteration);
   samplers.draw_pop_width_mean_sd->sample(population,
                                           &population->estimates.width_mean_sd,
+                                          population,
                                           iteration);
   samplers.draw_pop_baseline_sd->sample(population,
                                         &population->estimates.baseline_sd,
+                                        population,
                                         iteration);
   samplers.draw_pop_halflife_sd->sample(population,
                                         &population->estimates.halflife_sd,
+                                        population,
                                         iteration);
 
   // Pulse-to-pulse SDs (MH samplers)
   samplers.draw_pop_mass_sd->sample(population,
                                     &population->estimates.mass_sd,
+                                    population,
                                     iteration);
   samplers.draw_pop_width_sd->sample(population,
                                      &population->estimates.width_sd,
+                                     population,
                                      iteration);
 
   // Error variance (Gibbs sampler)
