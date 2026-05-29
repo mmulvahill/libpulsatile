@@ -121,8 +121,12 @@ inline double SS_DrawTVarScale::posterior_function(PulseEstimates *pulse,
 
   stdold       = (pulse_randomeffect) / (patient_sd / sqrt(curr_scale));
   stdnew       = (pulse_randomeffect) / (patient_sd / sqrt(proposal));
-  re_old       = (pulse_randomeffect - patient_mean) * 0.5 * re_old * curr_scale;
-  re_new       = (pulse_randomeffect - patient_mean) * 0.5 * re_new * proposal;
+  // Quadratic data term of the scaled-normal log-likelihood: (theta - mean)^2 * 0.5 * kappa.
+  // NOTE: the middle factor must be (pulse_randomeffect - patient_mean); previously this read
+  // the still-zero re_old/re_new (uninitialized self-reference), which silently dropped the
+  // entire data-dependent term from the t-variance-scale acceptance ratio.
+  re_old       = (pulse_randomeffect - patient_mean) * 0.5 * (pulse_randomeffect - patient_mean) * curr_scale;
+  re_new       = (pulse_randomeffect - patient_mean) * 0.5 * (pulse_randomeffect - patient_mean) * proposal;
   re_ratio     = (re_old - re_new) / (patient_sd * patient_sd);
   re_ratio    += Rf_pnorm5(stdold, 0, 1, 1.0, 1.0) -  // second 1.0 does the log xform for us 
                  Rf_pnorm5(stdnew, 0, 1, 1.0, 1.0) -  // first 1.0 says to use lower tail      
