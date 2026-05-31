@@ -61,6 +61,11 @@ class SS_DrawTVarScale :
 
     }
 
+    // Exposed for unit testing the MH log-ratio formula. The MH base dispatches
+    // through its own private virtual, so the public access here does not change
+    // normal sampling behavior.
+    double posterior_function(PulseEstimates *pulse, double proposal, Patient *patient);
+
   private:
 
     double PatientEstimates::*est_mean_;
@@ -72,7 +77,6 @@ class SS_DrawTVarScale :
     std::string get_parameter_name() { return parameter_name; };
 
     bool parameter_support(double val, Patient *notused);
-    double posterior_function(PulseEstimates *pulse, double proposal, Patient *patient);
 
 };
 

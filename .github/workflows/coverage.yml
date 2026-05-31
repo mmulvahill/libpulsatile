@@ -21,6 +21,9 @@ jobs:
     - name: Setup R dependencies
       run: |
         sudo apt-get update
+        # libuv1-dev: the 'fs' package (a transitive dependency of
+        # devtools/testthat/covr) now builds against system libuv; without it
+        # fs fails to compile and cascades to every package that depends on it.
         sudo apt-get install -y gfortran liblapack-dev libblas-dev \
           libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
           libfontconfig1-dev libharfbuzz-dev libfribidi-dev \

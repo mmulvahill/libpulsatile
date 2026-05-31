@@ -33,7 +33,9 @@ simulate_pulse_population(
 
 \item{mass_mean, width_mean}{Population mean pulse mass and width.}
 
-\item{baseline, halflife}{Population mean baseline and half-life.}
+\item{baseline, halflife}{Population mean baseline and half-life. When
+\code{halflife_sd > 0}, \code{halflife} must exceed 8 (the model's minimum
+half-life), otherwise the subject-level rejection sampler cannot converge.}
 
 \item{mass_sd, width_sd}{Pulse-to-pulse SD of mass and width (within subject).}
 
@@ -51,7 +53,8 @@ half-life (0 = identical subjects).}
 An object of class \code{population_sim}: a list with \code{data} (a
   list of per-subject data frames with \code{time} and \code{concentration},
   ready for \code{fit_pulse_population}), \code{n_subjects}, and \code{truth}
-  (the population means used).
+  (the population means and all SD arguments used, for comparison against
+  recovered posteriors).
 }
 \description{
 \code{simulate_pulse_population} generates data for the

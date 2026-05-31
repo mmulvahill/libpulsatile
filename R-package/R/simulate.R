@@ -421,7 +421,9 @@ simulate_pulse_joint <- function(rho                  = 0.5,
 #'   \code{num_obs * interval}.
 #' @param interval Time in minutes between observations.
 #' @param mass_mean,width_mean Population mean pulse mass and width.
-#' @param baseline,halflife Population mean baseline and half-life.
+#' @param baseline,halflife Population mean baseline and half-life. When
+#'   \code{halflife_sd > 0}, \code{halflife} must exceed 8 (the model's minimum
+#'   half-life), otherwise the subject-level rejection sampler cannot converge.
 #' @param mass_sd,width_sd Pulse-to-pulse SD of mass and width (within subject).
 #' @param ipi_mean,ipi_var Inter-pulse interval mean and variance.
 #' @param mass_mean_sd,width_mean_sd Subject-to-subject SD of the mean mass and
@@ -432,7 +434,8 @@ simulate_pulse_joint <- function(rho                  = 0.5,
 #' @return An object of class \code{population_sim}: a list with \code{data} (a
 #'   list of per-subject data frames with \code{time} and \code{concentration},
 #'   ready for \code{fit_pulse_population}), \code{n_subjects}, and \code{truth}
-#'   (the population means used).
+#'   (the population means and all SD arguments used, for comparison against
+#'   recovered posteriors).
 #' @seealso \code{\link{simulate_pulse}}, \code{\link{fit_pulse_population}}
 #' @keywords pulse simulation
 #' @examples
@@ -459,6 +462,10 @@ simulate_pulse_population <- function(n_subjects   = 5,
 
   if (!is.null(seed)) set.seed(seed)
   stopifnot(n_subjects >= 1)
+  # The deconvolution model's minimum half-life is 8 minutes. When half-life
+  # varies across subjects, the subject-level rejection sampler cannot draw a
+  # value above that floor unless the population mean exceeds it, so require it.
+  if (halflife_sd > 0) stopifnot(halflife > 8)
 
   # Draw a positive value from N(mean, sd) (sd = 0 returns the mean unchanged)
   rpos <- function(mean, sd, floor = 1e-6) {
@@ -486,7 +493,10 @@ simulate_pulse_population <- function(n_subjects   = 5,
     list(data = subjects,
          n_subjects = n_subjects,
          truth = list(mass_mean = mass_mean, width_mean = width_mean,
-                      baseline = baseline, halflife = halflife)),
+                      baseline = baseline, halflife = halflife,
+                      mass_mean_sd = mass_mean_sd, width_mean_sd = width_mean_sd,
+                      baseline_sd = baseline_sd, halflife_sd = halflife_sd,
+                      mass_sd = mass_sd, width_sd = width_sd)),
     class = "population_sim")
 
 }
