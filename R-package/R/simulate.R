@@ -407,6 +407,91 @@ simulate_pulse_joint <- function(rho                  = 0.5,
 }
 
 
+#' Simulate a multi-subject pulsatile hormone dataset
+#'
+#' @description \code{simulate_pulse_population} generates data for the
+#'   hierarchical population model: \code{n_subjects} independent pulsatile
+#'   series, each produced by \code{\link{simulate_pulse}}. Subject-level means
+#'   may vary around the population means via the \code{*_sd} arguments (set them
+#'   to 0, the default, for identical subjects). The result plugs directly into
+#'   \code{\link{fit_pulse_population}} as its \code{data} argument.
+#'
+#' @param n_subjects Number of subjects to simulate.
+#' @param num_obs Number of observations per subject. Window duration is
+#'   \code{num_obs * interval}.
+#' @param interval Time in minutes between observations.
+#' @param mass_mean,width_mean Population mean pulse mass and width.
+#' @param baseline,halflife Population mean baseline and half-life.
+#' @param mass_sd,width_sd Pulse-to-pulse SD of mass and width (within subject).
+#' @param ipi_mean,ipi_var Inter-pulse interval mean and variance.
+#' @param mass_mean_sd,width_mean_sd Subject-to-subject SD of the mean mass and
+#'   mean width (0 = identical subjects).
+#' @param baseline_sd,halflife_sd Subject-to-subject SD of baseline and
+#'   half-life (0 = identical subjects).
+#' @param seed Optional RNG seed for reproducibility.
+#' @return An object of class \code{population_sim}: a list with \code{data} (a
+#'   list of per-subject data frames with \code{time} and \code{concentration},
+#'   ready for \code{fit_pulse_population}), \code{n_subjects}, and \code{truth}
+#'   (the population means used).
+#' @seealso \code{\link{simulate_pulse}}, \code{\link{fit_pulse_population}}
+#' @keywords pulse simulation
+#' @examples
+#' sim <- simulate_pulse_population(n_subjects = 4, seed = 1)
+#' length(sim$data)
+#' @importFrom stats rnorm
+#' @export
+simulate_pulse_population <- function(n_subjects   = 5,
+                                      num_obs       = 144,
+                                      interval      = 10,
+                                      mass_mean     = 3.5,
+                                      width_mean    = 35,
+                                      baseline      = 2.6,
+                                      halflife      = 45,
+                                      mass_sd       = 1.0,
+                                      width_sd      = 5,
+                                      ipi_mean      = 12,
+                                      ipi_var       = 40,
+                                      mass_mean_sd  = 0,
+                                      width_mean_sd = 0,
+                                      baseline_sd   = 0,
+                                      halflife_sd   = 0,
+                                      seed          = NULL) {
+
+  if (!is.null(seed)) set.seed(seed)
+  stopifnot(n_subjects >= 1)
+
+  # Draw a positive value from N(mean, sd) (sd = 0 returns the mean unchanged)
+  rpos <- function(mean, sd, floor = 1e-6) {
+    if (sd <= 0) return(mean)
+    v <- -1
+    while (v <= floor) v <- stats::rnorm(1, mean, sd)
+    v
+  }
+
+  subjects <- lapply(seq_len(n_subjects), function(i) {
+    subj_mass     <- rpos(mass_mean,  mass_mean_sd)
+    subj_width    <- rpos(width_mean, width_mean_sd)
+    subj_baseline <- rpos(baseline,   baseline_sd)
+    subj_halflife <- rpos(halflife,   halflife_sd, floor = 8)
+    s <- simulate_pulse(num_obs = num_obs, interval = interval,
+                        ipi_mean = ipi_mean, ipi_var = ipi_var,
+                        mass_mean = subj_mass, mass_sd = mass_sd,
+                        width_mean = subj_width, width_sd = width_sd,
+                        constant_baseline = subj_baseline,
+                        constant_halflife = subj_halflife)
+    data.frame(time = s$data$time, concentration = s$data$concentration)
+  })
+
+  structure(
+    list(data = subjects,
+         n_subjects = n_subjects,
+         truth = list(mass_mean = mass_mean, width_mean = width_mean,
+                      baseline = baseline, halflife = halflife)),
+    class = "population_sim")
+
+}
+
+
 #-------------------------------------------------------------------------------
 # End of file
 #-------------------------------------------------------------------------------
