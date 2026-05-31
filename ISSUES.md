@@ -51,6 +51,8 @@ for (auto& response_pulse : response_patient->pulses) {
 
 ### H1. Input Validation for Subject Data Lists (PR #6)
 
+**Status:** ✅ RESOLVED. `R-package/src/population.cpp` validates that each subject list contains `time` and `concentration`, that they have matching non-zero length, before constructing `Patient` objects (added in commit `e5c89a8`).
+
 **Location:** `R-package/src/population.cpp:122-157`
 
 **Problem:**
@@ -94,6 +96,8 @@ for (int s = 0; s < n_subjects; s++) {
 
 ### H2. Integer Overflow Risk in PopulationChains Constructor (PR #6)
 
+**Status:** ✅ RESOLVED. Validation now runs in a static `validate_and_count()` helper invoked from the initializer list, so an invalid `thin` (0 → integer divide-by-zero) or `burnin >= iterations` (negative matrix size) is rejected with a clear message *before* the `arma::mat` members are sized — the earlier in-body checks ran too late. The R wrapper (`fit_population.R`) also validates `burnin < iters` and `thin >= 1` for friendly errors.
+
 **Location:** `include/bp_datastructures/populationchains.h:40`
 
 **Problem:**
@@ -129,6 +133,8 @@ PopulationChains(...) {
 ---
 
 ### H3. Numerical Overflow in Strauss Acceptance Calculation (PR #8)
+
+**Status:** ✅ RESOLVED. `joint_birthdeath.h` now computes the acceptance ratio on the log scale (`log_papas_cif = log(birth_rate_at_pos) + sum_s_r * log(strauss_repulsion)`; `accept = log(runif) < log_b_ratio`), avoiding the `pow()` over/underflow (commit `90b6de9`).
 
 **Location:** `joint_birthdeath.h:216-218`
 

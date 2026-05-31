@@ -117,7 +117,10 @@ fit_pulse_population <- function(data,
   if (burnin >= iters) {
     stop("burnin must be < iters")
   }
-  
+  if (thin < 1) {
+    stop("thin must be a positive integer")
+  }
+
   # Process data into list format
   if (!is.null(subject_id)) {
     # Split single data frame by subject_id
