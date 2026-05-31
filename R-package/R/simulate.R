@@ -239,6 +239,269 @@ plot.pulse_sim <- function(x, ...) {
 # }
 
 
+#' Simulate coupled driver-response pulsatile hormone data
+#'
+#' @description \code{simulate_pulse_joint} simulates a pair of hormone time
+#'   series for the joint driver-response model. The driver hormone is generated
+#'   as a standard pulsatile series. Response-hormone pulse locations are then
+#'   drawn from a non-homogeneous process whose intensity is modulated by the
+#'   driver pulses through the coupling kernel, matching the model's response
+#'   birth rate \code{base_rate * (1 + lambda(t))}, where
+#'   \code{lambda(t) = sum_j (rho / sqrt(2*pi*nu)) * exp(-(t - tau_j)^2 / (2*nu))}
+#'   and \code{tau_j} are the driver pulse locations. Larger \code{rho} produces
+#'   more response pulses clustered near driver pulses; smaller \code{nu}
+#'   produces tighter clustering.
+#'
+#' @param rho Coupling strength (cluster size); must be > 0.
+#' @param nu Coupling temporal spread (cluster width, a variance in minutes^2);
+#'   must be > 0.
+#' @param num_obs Number of observations. Window duration is
+#'   \code{num_obs * interval}.
+#' @param interval Time in minutes between observations.
+#' @param response_pulse_count Base (driver-independent) expected number of
+#'   response pulses over the window.
+#' @param driver_mass_mean,driver_mass_sd Driver pulse mass mean and SD.
+#' @param driver_width_mean,driver_width_sd Driver pulse width mean and SD.
+#' @param driver_baseline,driver_halflife Driver baseline and half-life.
+#' @param driver_ipi_mean,driver_ipi_var Driver inter-pulse interval mean and
+#'   variance.
+#' @param response_mass_mean,response_mass_sd Response pulse mass mean and SD.
+#' @param response_width_mean,response_width_sd Response pulse width mean and SD.
+#' @param response_baseline,response_halflife Response baseline and half-life.
+#' @param error_var Variance of the multiplicative log-normal observation error.
+#' @param seed Optional RNG seed for reproducibility.
+#' @return An object of class \code{joint_sim}: a list with \code{driver_data}
+#'   and \code{response_data} (each a tibble with \code{time} and
+#'   \code{concentration}), the \code{driver_parameters} and
+#'   \code{response_parameters} pulse tables, and \code{association} (the true
+#'   \code{rho}, \code{nu}, and \code{response_pulse_count}).
+#' @seealso \code{\link{simulate_pulse}}, \code{\link{fit_pulse_joint}}
+#' @keywords pulse simulation
+#' @examples
+#' sim <- simulate_pulse_joint(rho = 0.8, nu = 100, seed = 1)
+#' str(sim$driver_data)
+#' @importFrom stats rgamma rnorm runif rpois pnorm
+#' @export
+simulate_pulse_joint <- function(rho                  = 0.5,
+                                 nu                   = 100,
+                                 num_obs              = 144,
+                                 interval             = 10,
+                                 response_pulse_count = 12,
+                                 driver_mass_mean     = 3.5,
+                                 driver_mass_sd       = 1.0,
+                                 driver_width_mean    = 35,
+                                 driver_width_sd      = 5,
+                                 driver_baseline      = 2.6,
+                                 driver_halflife      = 45,
+                                 driver_ipi_mean      = 12,
+                                 driver_ipi_var       = 40,
+                                 response_mass_mean   = 3.5,
+                                 response_mass_sd     = 1.0,
+                                 response_width_mean  = 35,
+                                 response_width_sd    = 5,
+                                 response_baseline    = 2.6,
+                                 response_halflife    = 45,
+                                 error_var            = 0.005,
+                                 seed                 = NULL) {
+
+  if (!is.null(seed)) set.seed(seed)
+  stopifnot(rho > 0, nu > 0, response_pulse_count > 0)
+
+  T_end <- num_obs * interval
+
+  # Concentration helpers (mirror simulate_pulse)
+  erfFn <- function(x) 2 * stats::pnorm(x * sqrt(2), 0, 1) - 1
+  meanI <- function(tt, b, a, tau1, lam, s2p) {
+    b + (a / 2) *
+      exp((tau1 - tt) * lam + 0.5 * lam^2 * s2p) *
+      (1 + erfFn((tt - (tau1 + lam * s2p)) / sqrt(2 * s2p)))
+  }
+  taxis <- seq(interval, T_end, interval)
+
+  # Build a concentration series from a set of pulse locations
+  build_series <- function(tau, mass_mean, mass_sd, width_mean, width_sd,
+                           baseline, halflife) {
+    np <- length(tau)
+    A <- s2p <- mass_kappa <- width_kappa <- rep(0, max(np, 1))
+    if (np > 0) {
+      for (i in seq_len(np)) {
+        mass_kappa[i]  <- stats::rgamma(1, shape = 2, rate = 2)
+        width_kappa[i] <- stats::rgamma(1, shape = 2, rate = 2)
+        tvar  <- mass_sd^2  / mass_kappa[i]
+        t2var <- width_sd^2 / width_kappa[i]
+        while (A[i]   < 0.25) A[i]   <- stats::rnorm(1, mass_mean,  sqrt(tvar))
+        while (s2p[i] < 0.5)  s2p[i] <- stats::rnorm(1, width_mean, sqrt(t2var))
+      }
+    }
+    ytmp <- 0
+    if (np > 0) {
+      for (i in seq_len(np)) {
+        ytmp <- ytmp + meanI(taxis, 0, A[i], tau[i], log(2) / halflife, s2p[i])
+      }
+    }
+    ysim   <- ytmp + baseline
+    errors <- stats::rnorm(length(taxis), 0, sqrt(error_var))
+    conc   <- ysim * exp(errors)
+    list(
+      data = tibble::tibble(observation = seq_along(taxis),
+                            time = taxis, concentration = conc),
+      parameters = tibble::tibble(
+        pulse_no    = if (np > 0) seq_len(np) else integer(0),
+        mass        = if (np > 0) A[seq_len(np)] else numeric(0),
+        width       = if (np > 0) s2p[seq_len(np)] else numeric(0),
+        location    = if (np > 0) tau else numeric(0),
+        mass_kappa  = if (np > 0) mass_kappa[seq_len(np)] else numeric(0),
+        width_kappa = if (np > 0) width_kappa[seq_len(np)] else numeric(0))
+    )
+  }
+
+  # --- Driver hormone: standard pulsatile series ---
+  driver <- simulate_pulse(num_obs = num_obs, interval = interval,
+                           ipi_mean = driver_ipi_mean, ipi_var = driver_ipi_var,
+                           mass_mean = driver_mass_mean, mass_sd = driver_mass_sd,
+                           width_mean = driver_width_mean, width_sd = driver_width_sd,
+                           constant_baseline = driver_baseline,
+                           constant_halflife = driver_halflife)
+  tau_driver <- driver$parameters$location
+  n_driver   <- length(tau_driver)
+
+  # --- Coupling intensity: base_rate * (1 + lambda(t)) ---
+  kernel_sum <- function(t) {
+    if (n_driver == 0) return(rep(0, length(t)))
+    vapply(t, function(ti)
+      sum((rho / sqrt(2 * pi * nu)) * exp(-(ti - tau_driver)^2 / (2 * nu))),
+      numeric(1))
+  }
+  base_rate <- response_pulse_count / T_end
+
+  # --- Response pulse locations via thinning (Lewis-Shedler) ---
+  # Upper bound: lambda(t) <= n_driver * peak_kernel for all t.
+  peak_kernel <- rho / sqrt(2 * pi * nu)
+  mu_max      <- base_rate * (1 + n_driver * peak_kernel)
+  n_cand      <- stats::rpois(1, mu_max * T_end)
+  if (n_cand > 0) {
+    cand         <- sort(stats::runif(n_cand, 0, T_end))
+    accept       <- stats::runif(n_cand) < (base_rate * (1 + kernel_sum(cand)) / mu_max)
+    tau_response <- cand[accept]
+  } else {
+    tau_response <- numeric(0)
+  }
+
+  response <- build_series(tau_response, response_mass_mean, response_mass_sd,
+                           response_width_mean, response_width_sd,
+                           response_baseline, response_halflife)
+
+  structure(
+    list(
+      driver_data         = driver$data[, c("time", "concentration")],
+      response_data       = response$data[, c("time", "concentration")],
+      driver_parameters   = driver$parameters,
+      response_parameters = response$parameters,
+      association         = list(rho = rho, nu = nu,
+                                 response_pulse_count = response_pulse_count,
+                                 n_driver_pulses = n_driver,
+                                 n_response_pulses = length(tau_response))
+    ),
+    class = "joint_sim")
+
+}
+
+
+#' Simulate a multi-subject pulsatile hormone dataset
+#'
+#' @description \code{simulate_pulse_population} generates data for the
+#'   hierarchical population model: \code{n_subjects} independent pulsatile
+#'   series, each produced by \code{\link{simulate_pulse}}. Subject-level means
+#'   may vary around the population means via the \code{*_sd} arguments (set them
+#'   to 0, the default, for identical subjects). The result plugs directly into
+#'   \code{\link{fit_pulse_population}} as its \code{data} argument.
+#'
+#' @param n_subjects Number of subjects to simulate.
+#' @param num_obs Number of observations per subject. Window duration is
+#'   \code{num_obs * interval}.
+#' @param interval Time in minutes between observations.
+#' @param mass_mean,width_mean Population mean pulse mass and width.
+#' @param baseline,halflife Population mean baseline and half-life. When
+#'   \code{halflife_sd > 0}, \code{halflife} must exceed 8 (the model's minimum
+#'   half-life), otherwise the subject-level rejection sampler cannot converge.
+#' @param mass_sd,width_sd Pulse-to-pulse SD of mass and width (within subject).
+#' @param ipi_mean,ipi_var Inter-pulse interval mean and variance.
+#' @param mass_mean_sd,width_mean_sd Subject-to-subject SD of the mean mass and
+#'   mean width (0 = identical subjects).
+#' @param baseline_sd,halflife_sd Subject-to-subject SD of baseline and
+#'   half-life (0 = identical subjects).
+#' @param seed Optional RNG seed for reproducibility.
+#' @return An object of class \code{population_sim}: a list with \code{data} (a
+#'   list of per-subject data frames with \code{time} and \code{concentration},
+#'   ready for \code{fit_pulse_population}), \code{n_subjects}, and \code{truth}
+#'   (the population means and all SD arguments used, for comparison against
+#'   recovered posteriors).
+#' @seealso \code{\link{simulate_pulse}}, \code{\link{fit_pulse_population}}
+#' @keywords pulse simulation
+#' @examples
+#' sim <- simulate_pulse_population(n_subjects = 4, seed = 1)
+#' length(sim$data)
+#' @importFrom stats rnorm
+#' @export
+simulate_pulse_population <- function(n_subjects   = 5,
+                                      num_obs       = 144,
+                                      interval      = 10,
+                                      mass_mean     = 3.5,
+                                      width_mean    = 35,
+                                      baseline      = 2.6,
+                                      halflife      = 45,
+                                      mass_sd       = 1.0,
+                                      width_sd      = 5,
+                                      ipi_mean      = 12,
+                                      ipi_var       = 40,
+                                      mass_mean_sd  = 0,
+                                      width_mean_sd = 0,
+                                      baseline_sd   = 0,
+                                      halflife_sd   = 0,
+                                      seed          = NULL) {
+
+  if (!is.null(seed)) set.seed(seed)
+  stopifnot(n_subjects >= 1)
+  # The deconvolution model's minimum half-life is 8 minutes. When half-life
+  # varies across subjects, the subject-level rejection sampler cannot draw a
+  # value above that floor unless the population mean exceeds it, so require it.
+  if (halflife_sd > 0) stopifnot(halflife > 8)
+
+  # Draw a positive value from N(mean, sd) (sd = 0 returns the mean unchanged)
+  rpos <- function(mean, sd, floor = 1e-6) {
+    if (sd <= 0) return(mean)
+    v <- -1
+    while (v <= floor) v <- stats::rnorm(1, mean, sd)
+    v
+  }
+
+  subjects <- lapply(seq_len(n_subjects), function(i) {
+    subj_mass     <- rpos(mass_mean,  mass_mean_sd)
+    subj_width    <- rpos(width_mean, width_mean_sd)
+    subj_baseline <- rpos(baseline,   baseline_sd)
+    subj_halflife <- rpos(halflife,   halflife_sd, floor = 8)
+    s <- simulate_pulse(num_obs = num_obs, interval = interval,
+                        ipi_mean = ipi_mean, ipi_var = ipi_var,
+                        mass_mean = subj_mass, mass_sd = mass_sd,
+                        width_mean = subj_width, width_sd = width_sd,
+                        constant_baseline = subj_baseline,
+                        constant_halflife = subj_halflife)
+    data.frame(time = s$data$time, concentration = s$data$concentration)
+  })
+
+  structure(
+    list(data = subjects,
+         n_subjects = n_subjects,
+         truth = list(mass_mean = mass_mean, width_mean = width_mean,
+                      baseline = baseline, halflife = halflife,
+                      mass_mean_sd = mass_mean_sd, width_mean_sd = width_mean_sd,
+                      baseline_sd = baseline_sd, halflife_sd = halflife_sd,
+                      mass_sd = mass_sd, width_sd = width_sd)),
+    class = "population_sim")
+
+}
+
+
 #-------------------------------------------------------------------------------
-# End of file  
+# End of file
 #-------------------------------------------------------------------------------

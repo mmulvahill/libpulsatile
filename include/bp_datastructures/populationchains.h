@@ -28,6 +28,27 @@ using namespace Rcpp;
 
 class PopulationChains {
 
+    // Validate the MCMC configuration BEFORE any member is initialized. The
+    // arma::mat members are sized from num_outputs in the initializer list, so
+    // an invalid thin (e.g. 0 -> integer divide-by-zero) or burnin >= iterations
+    // (negative size) must be rejected here rather than in the constructor body,
+    // which runs only after the members are already (mis-)constructed.
+    static int validate_and_count(int iterations, int thin, int burnin) {
+      if (thin <= 0) {
+        Rcpp::stop("thin must be positive (got %d)", thin);
+      }
+      if (burnin >= iterations) {
+        Rcpp::stop("burnin must be less than iterations (burnin=%d, iterations=%d)",
+                   burnin, iterations);
+      }
+      int n = (iterations - burnin) / thin;
+      if (n <= 0) {
+        Rcpp::stop("No outputs would be saved with these settings (burnin=%d, iterations=%d, thin=%d)",
+                   burnin, iterations, thin);
+      }
+      return n;
+    }
+
   public:
 
     // Constructor
@@ -37,22 +58,13 @@ class PopulationChains {
                       int in_num_subjects,
                       bool in_verbose,
                       int in_verbose_iter)
-      : num_outputs((in_iterations - in_burnin) / in_thin)
+      : num_outputs(validate_and_count(in_iterations, in_thin, in_burnin))
       , num_subjects(in_num_subjects)
       , population_chain(num_outputs, 12, arma::fill::zeros)  // 11 pop params + iteration
       , subject_chains(in_num_subjects, arma::mat(num_outputs, 6, arma::fill::zeros)) {  // 5 params + iteration per subject
 
-        // Validate MCMC configuration
-        if (in_burnin >= in_iterations) {
-          Rcpp::stop("burnin must be less than iterations");
-        }
-        if (in_thin <= 0) {
-          Rcpp::stop("thin must be positive");
-        }
-        if (num_outputs <= 0) {
-          Rcpp::stop("No outputs would be saved with these burnin/thin settings (burnin=%d, iterations=%d, thin=%d)",
-                     in_burnin, in_iterations, in_thin);
-        }
+        // MCMC configuration already validated by validate_and_count() above,
+        // which runs before the arma::mat members are sized.
 
         iterations   = in_iterations;
         thin         = in_thin;

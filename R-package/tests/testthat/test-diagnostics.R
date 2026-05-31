@@ -250,7 +250,10 @@ test_that("summary.population_fit includes diagnostics", {
   expect_output(summary(fit), "Convergence Diagnostics")
   expect_output(summary(fit), "ESS")
   
-  # Without diagnostics
+  # Without diagnostics: still prints the model summary header, but the
+  # convergence diagnostics (ESS) section must be suppressed.
   expect_output(summary(fit, diagnostics = FALSE), "Population Model Summary")
-  expect_silent(summary(fit, diagnostics = FALSE))  # No ESS output
+  no_diag_output <- capture.output(summary(fit, diagnostics = FALSE))
+  expect_false(any(grepl("Convergence Diagnostics", no_diag_output)))
+  expect_false(any(grepl("ESS", no_diag_output)))
 })

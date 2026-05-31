@@ -109,7 +109,7 @@ This comprehensive check typically takes 2-5 minutes but saves 30+ minutes of CI
 - **Headers**: Use include guards: `GUARD_filename_h`
 - **Naming**: ClassNames, function_names, local_variables, CONSTANTS
 - **Formatting**: 2-space indentation, 80-character line length
-- **C++ Standards**: C++11, use Rcpp/RcppArmadillo for R integration
+- **C++ Standards**: C++14 (required by current RcppArmadillo; set via `-std=c++14` in the Makefile and `CXX_STD = CXX14` in `R-package/src/Makevars`), use Rcpp/RcppArmadillo for R integration
 - **R Style**: Follow tidyverse style guide, use `<-` for assignment
 - **Imports**: Group imports by library (Rcpp, std, project headers)
 

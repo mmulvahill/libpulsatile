@@ -190,18 +190,22 @@ inline double Joint_DrawRho::posterior_function(JointData *data,
     log_likelihood_ratio += log(lambda_proposal) - log(lambda_current);
   }
 
-  // Integral term: -∫ λ(t) dt
-  // Approximation: assume integral ≈ (fitend - fitstart) × avg(λ)
-  // For ρ scaling: integral scales linearly with ρ
-  double fitstart = data->response_patient->data.fitstart;
-  double fitend = data->response_patient->data.fitend;
-  double time_span = fitend - fitstart;
+  // Integral term: -∫ λ(t) dt for the response-pulse Poisson intensity
+  // μ(t) = c * (1 + λ(t)), where c is the base per-minute response rate. Each
+  // coupling kernel (rho / sqrt(2*pi*nu)) * exp(-(t-tau)^2 / (2*nu)) integrates
+  // to exactly rho over the window (independent of nu and of the window length),
+  // so ∫μ dt = c * (T + n_driver * rho). The c*T part does not depend on rho and
+  // cancels in the ratio, leaving a rho-dependent penalty of c * n_driver * rho.
+  // c is sourced from the response prior pulse count / window, matching the
+  // base birth rate used by the birth-death process (joint_birthdeath.h).
+  // NOTE: earlier versions used a coefficient of (time_span * n_driver) and then
+  // (n_driver) with an implicit c=1, ~100-1000x too large, which crushed rho
+  // toward 0 regardless of the data.
   int n_driver = data->driver_patient->get_pulsecount();
-
-  // Integral contribution (rough approximation)
-  // Each driver pulse contributes approximately ρ to the integral
-  double integral_current = time_span * n_driver * current_rho;
-  double integral_proposal = time_span * n_driver * proposal;
+  double T = data->response_patient->data.fitend - data->response_patient->data.fitstart;
+  double c = (double)data->response_patient->priors.pulse_count / T;
+  double integral_current  = c * n_driver * current_rho;
+  double integral_proposal = c * n_driver * proposal;
 
   log_likelihood_ratio -= (integral_proposal - integral_current);
 
@@ -271,17 +275,14 @@ inline double Joint_DrawNu::posterior_function(JointData *data,
     log_likelihood_ratio += log(lambda_proposal) - log(lambda_current);
   }
 
-  // Integral approximation (depends on ν through kernel width)
-  double fitstart = data->response_patient->data.fitstart;
-  double fitend = data->response_patient->data.fitend;
-  double time_span = fitend - fitstart;
-  int n_driver = data->driver_patient->get_pulsecount();
-
-  // Rough approximation: wider kernels (larger ν) increase integral
-  double integral_current = time_span * n_driver * rho * sqrt(current_nu);
-  double integral_proposal = time_span * n_driver * rho * sqrt(proposal);
-
-  log_likelihood_ratio -= (integral_proposal - integral_current);
+  // Integral term: -∫ λ(t) dt. To leading order ∫λ(t)dt = time_span + n_driver*rho,
+  // which is INDEPENDENT of nu: each Gaussian kernel integrates to rho regardless
+  // of its width because the 1/sqrt(2*pi*nu) normalization exactly cancels the
+  // spread. So nu enters the likelihood only through the sum-of-log-lambda term
+  // above and contributes no integral term.
+  // NOTE: a previous version subtracted time_span * n_driver * rho * sqrt(nu),
+  // which carried both the spurious time_span factor and an incorrect sqrt(nu)
+  // dependence, collapsing the nu posterior.
 
   return log_prior_ratio + log_jacobian + log_likelihood_ratio;
 }

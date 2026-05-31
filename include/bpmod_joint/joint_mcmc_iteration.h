@@ -302,8 +302,14 @@ inline void joint_mcmc_iteration(Patient *driver_patient,
   JointData joint_data(driver_patient, response_patient, assoc_priors);
 
   // Sample ρ and ν
-  samplers.draw_rho->sample(&joint_data, &assoc_est->rho, iteration);
-  samplers.draw_nu->sample(&joint_data, &assoc_est->nu, iteration);
+  // NOTE: assoc_est is passed as BOTH sampling_unit's companion and the container.
+  // Joint_DrawRho/Joint_DrawNu::posterior_function read the CURRENT rho/nu from the
+  // container argument; the 3-arg sample() overload would default-construct an empty
+  // AssociationEstimates (rho=1, nu=1, log_rho=0), so the MH acceptance ratio would be
+  // computed against those phantom constants instead of the real current values,
+  // breaking detailed balance. Passing the real assoc_est as the container fixes this.
+  samplers.draw_rho->sample(&joint_data, &assoc_est->rho, assoc_est, iteration);
+  samplers.draw_nu->sample(&joint_data, &assoc_est->nu, assoc_est, iteration);
 
   // Update log-scale values to maintain consistency
   assoc_est->set_rho(assoc_est->rho);
