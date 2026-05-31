@@ -31,7 +31,8 @@ jobs:
         sudo apt-get install -y gfortran liblapack-dev libblas-dev \
           libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
           libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
-          libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+          libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev \
+          libuv1-dev
 
     - name: Setup R dependencies (macOS)
       if: matrix.os == 'macos-latest'
