@@ -143,3 +143,7 @@ Documented here and in a `99-inference-roadmap.Rmd` stub as short entries (one-l
 - Implementation or planning of I–O (revisit after the current approach is solid).
 - Bundling real hormone datasets.
 - Alternative samplers (SMC/HMC/VI) and the `lit_review.md` research directions.
+
+### Deferred package fix (logged 2026-06-07)
+
+Extend the convergence diagnostics — `plot_trace()`, `plot_acf()`, `convergence_report()`, and `population_diagnostics()` — to also accept **single-subject `pulse_fit`** objects. They are currently population-only (they `stop()` on non-`population_fit` and read `fit$population_chain` / `fit$num_subjects`). This was discovered while planning vignette D, which works around the gap by using only the model-agnostic tools (`effective_sample_size`, `gelman_rubin`, `bp_trace`). When fixed, vignette D can adopt the turnkey suite directly. Likely approach: a `pulse_fit` branch that pulls the chain from `patient_chain(fit)` with `num_subjects = 1`, plus tests and Roxygen updates. Not scheduled.
