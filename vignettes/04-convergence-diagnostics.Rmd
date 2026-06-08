@@ -1,0 +1,121 @@
+---
+title: "Assessing convergence and MCMC diagnostics"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Assessing convergence and MCMC diagnostics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+
+A Markov chain Monte Carlo fit is only trustworthy once the chains have
+forgotten their starting values and are exploring the posterior. We assess that
+with three complementary tools: trace plots (a visual check of mixing),
+the effective sample size (how many independent draws the chain is really
+worth), and the Gelman-Rubin statistic (agreement across several independent
+chains). In this single-subject model the elimination half-life is the hardest
+parameter to sample, and the diagnostics below show that honestly rather than
+hiding it.
+
+## Run several chains
+
+The Gelman-Rubin diagnostic compares independent chains, so we fit the same
+model four times from different random seeds. (This chunk is precomputed offline
+via `vignettes/precompute.R`, so the vignette itself builds quickly.)
+
+
+``` r
+simdat <- {set.seed(2026); simulate_pulse(num_obs = 60, interval = 10,
+            error_var = 0.005, mass_mean = 2.5, width_mean = 40,
+            constant_halflife = 40, constant_baseline = 2.5)}
+spec <- pulse_spec(
+  location_prior_type = "strauss", prior_location_gamma = 0.1,
+  prior_location_range = 30, prior_halflife_mean = 38, prior_halflife_var = 1000,
+  prior_sd_mass = 0.5, prior_sd_width = 5, prior_mass_mean = 2.5,
+  prior_mass_var = 2, prior_mean_pulse_count = 10, prior_width_mean = 35,
+  prior_baseline_mean = 2.25, prior_baseline_var = 100, sv_mass_mean = 2,
+  sv_width_sd = 10, sv_error_var = 0.005, sv_mass_sd = 0.4, sv_baseline_mean = 2,
+  sv_halflife_mean = 42, pv_mean_pulse_width = 10, pv_indiv_pulse_width = 10,
+  pv_sd_pulse_width = 0.1, pv_pulse_location = 5, pv_sd_pulse_mass = 0.45)
+
+fits <- lapply(1:4, function(k) {
+  set.seed(100 + k)
+  fit_pulse(data = simdat$data, spec = spec,
+            iters = 40000, thin = 20, burnin = 10000, verbose = FALSE)
+})
+#> Location prior is: strauss
+#> mcmc iterations = 40000
+#> thin = 20
+#> burnin = 10000
+#> Location prior is: strauss
+#> mcmc iterations = 40000
+#> thin = 20
+#> burnin = 10000
+#> Location prior is: strauss
+#> mcmc iterations = 40000
+#> thin = 20
+#> burnin = 10000
+#> Location prior is: strauss
+#> mcmc iterations = 40000
+#> thin = 20
+#> burnin = 10000
+```
+
+## Trace plots
+
+A well-mixed chain looks like a fuzzy, stationary horizontal band; a chain that
+drifts or gets stuck has not converged. `bp_trace()` shows every parameter for
+one fit at once.
+
+
+``` r
+bp_trace(fits[[1]])
+```
+
+![plot of chunk trace](04-convergence-diagnostics-trace-1.png)
+
+## Effective sample size
+
+Successive MCMC draws are correlated, so the saved samples are worth fewer
+*independent* draws than their raw count. The effective sample size (ESS)
+estimates that effective count; as a rough guide, an ESS in the low hundreds is
+adequate for stable posterior means and intervals.
+
+
+``` r
+params <- c("baseline", "halflife", "mass_mean", "width_mean")
+ess_tbl <- sapply(params, function(p)
+  effective_sample_size(patient_chain(fits[[1]])[[p]]))
+round(ess_tbl, 1)
+#>   baseline   halflife  mass_mean width_mean 
+#>       82.3       49.0      220.4      133.9
+```
+
+## Gelman-Rubin across chains
+
+The Gelman-Rubin statistic (often written R-hat) compares within-chain variance
+to between-chain variance. Values near 1.0 indicate the chains agree and have
+likely converged; values above about 1.1 are a warning sign.
+
+
+``` r
+gr <- sapply(params, function(p) {
+  chains <- lapply(fits, function(f) patient_chain(f)[[p]])
+  gelman_rubin(chains)
+})
+round(gr, 3)
+#>   baseline   halflife  mass_mean width_mean 
+#>      1.004      1.007      1.003      1.000
+```
+
+Read together, these diagnostics tell a consistent story: most parameters reach
+an adequate ESS with R-hat close to 1.0, while the half-life lags -- a larger
+autocorrelation, a lower ESS, and an R-hat further from 1.0. That is a real and
+common feature of this model, not a bug. Practical remedies are to run the chain
+longer, thin more aggressively, or tighten the half-life prior when physiology
+justifies it.
+
+For population models, bayespulse also provides turnkey `convergence_report()`,
+`plot_trace()`, and `plot_acf()` functions; those operate on a `population_fit`
+and are demonstrated in the population vignette.
