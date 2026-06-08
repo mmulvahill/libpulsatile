@@ -11,7 +11,7 @@ vignette: >
 
 Many hormones are secreted into the bloodstream in a pulsatile fashion and
 then eliminated exponentially. To characterize features such as baseline
-concentration, half-life, pulse amplitude, or the number of pulses over a
+concentration, half-life, pulse mass, or the number of pulses over a
 period of time, serial blood sampling is performed at regular intervals so
 that hormone levels are measured repeatedly across a long observation window.
 
@@ -111,7 +111,7 @@ spec <- pulse_spec(
   prior_location_gamma  = 0.1,  prior_location_range = 30,
   prior_halflife_mean   = 38,   prior_halflife_var   = 1000,
   prior_sd_mass         = 0.5,  prior_sd_width       = 5,
-  prior_mass_mean       = 0.5,  prior_mass_var       = 2,
+  prior_mass_mean       = 2.5,  prior_mass_var       = 2,
   prior_mean_pulse_count = 10,  prior_width_mean     = 35,
   prior_baseline_mean   = 2.25, prior_baseline_var   = 100,
   sv_mass_mean = 2, sv_width_sd = 10, sv_error_var = 0.005, sv_mass_sd = 0.4,
@@ -173,7 +173,9 @@ bp_predicted(fit, predicted)
 
 The trace plots show how the sampled parameter values evolve across iterations;
 well-mixed chains that move freely without trends or sticking suggest the
-sampler has converged. The posterior histograms summarize the uncertainty in
+sampler has converged. (The width standard deviation is held fixed in this
+version of the package, so its trace appears as a flat line; that is expected,
+not a sign of poor mixing.) The posterior histograms summarize the uncertainty in
 each estimated parameter. The location posterior shows where along the time
 axis pulses were detected, with peaks at the inferred pulse positions. Finally,
 the predicted plot overlays the fitted concentration curve and its 80% credible
