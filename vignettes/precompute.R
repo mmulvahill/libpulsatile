@@ -19,14 +19,16 @@ library(bayespulse)
 vdir  <- "vignettes"
 origs <- list.files(vdir, pattern = "\\.Rmd\\.orig$")
 args  <- commandArgs(trailingOnly = TRUE)
-if (length(args) > 0) origs <- origs[grepl(args[1], origs)]
+if (length(args) > 0) origs <- origs[grepl(args[1], origs, fixed = TRUE)]
 if (length(origs) == 0) { message("No matching .Rmd.orig files."); quit(save = "no") }
 
-old <- setwd(vdir)
-on.exit(setwd(old))
-for (o in origs) {
-  out <- sub("\\.orig$", "", o)
-  message("Knitting ", o, " -> ", out)
-  knitr::knit(input = o, output = out)
-}
+local({
+  old <- setwd(vdir)
+  on.exit(setwd(old))
+  for (o in origs) {
+    out <- sub("\\.orig$", "", o)
+    message("Knitting ", o, " -> ", out)
+    knitr::knit(input = o, output = out)
+  }
+})
 message("Done. Review the generated .Rmd + figure files, then git add them.")

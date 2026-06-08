@@ -18,4 +18,5 @@ README.Rmd
 ^vignettes/.*\.Rmd\.orig$
 ^vignettes/precompute\.R$
 ^vignettes/my-vignette_files$
+^vignettes/my-vignette\.Rmd$
 
