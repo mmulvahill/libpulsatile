@@ -7,13 +7,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
-                      fig.path = "01-getting-started-",
-                      fig.width = 7, fig.height = 5, dpi = 96)
-library(bayespulse)
-set.seed(2026)
-```
+
 
 Many hormones are secreted into the bloodstream in a pulsatile fashion and
 then eliminated exponentially. To characterize features such as baseline
@@ -84,7 +78,8 @@ where $B$ is the time-constant baseline concentration.
 
 ## 2. Simulate a hormone series
 
-```{r simulate}
+
+``` r
 simdat <- simulate_pulse(num_obs = 60, interval = 10, error_var = 0.005,
                          ipi_mean = 12, ipi_var = 10, ipi_min = 4,
                          mass_mean = 2.5, mass_sd = 0.5,
@@ -92,9 +87,12 @@ simdat <- simulate_pulse(num_obs = 60, interval = 10, error_var = 0.005,
                          constant_halflife = 40, constant_baseline = 2.5)
 ```
 
-```{r plot-sim}
+
+``` r
 plot(simdat)
 ```
+
+![plot of chunk plot-sim](v01-getting-started-plot-sim-1.png)
 
 The plot shows the simulated concentration series over time, with sharp rises
 at pulse locations followed by exponential decay back toward baseline.
@@ -106,7 +104,8 @@ distributions on each parameter. Here we use a Strauss location prior, which
 discourages pulses from being placed implausibly close together. A full
 treatment of the priors and how to set them is covered in a later vignette.
 
-```{r spec}
+
+``` r
 spec <- pulse_spec(
   location_prior_type   = "strauss",
   prior_location_gamma  = 0.1,  prior_location_range = 30,
@@ -130,29 +129,47 @@ remaining parameters are updated by Metropolis-Hastings. We run a
 production-length chain below. This chunk is precomputed offline (via
 `vignettes/precompute.R`) so the vignette itself builds quickly.
 
-```{r fit}
+
+``` r
 fit <- fit_pulse(data = simdat$data, spec = spec,
                  iters = 60000, thin = 20, burnin = 10000, verbose = FALSE)
+#> Location prior is: strauss
+#> mcmc iterations = 60000
+#> thin = 20
+#> burnin = 10000
 ```
 
 ## 5. Inspect the results
 
-```{r trace}
+
+``` r
 bp_trace(fit)
 ```
 
-```{r posteriors}
+![plot of chunk trace](v01-getting-started-trace-1.png)
+
+
+``` r
 bp_posteriors(fit, type = "histogram")
+#> `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 ```
 
-```{r locations}
+![plot of chunk posteriors](v01-getting-started-posteriors-1.png)
+
+
+``` r
 bp_location_posterior(fit)
 ```
 
-```{r predicted}
+![plot of chunk locations](v01-getting-started-locations-1.png)
+
+
+``` r
 predicted <- predict(fit, cred_interval = 0.8)
 bp_predicted(fit, predicted)
 ```
+
+![plot of chunk predicted](v01-getting-started-predicted-1.png)
 
 The trace plots show how the sampled parameter values evolve across iterations;
 well-mixed chains that move freely without trends or sticking suggest the
