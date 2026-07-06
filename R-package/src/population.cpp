@@ -39,6 +39,10 @@ Rcpp::List population_(Rcpp::List subject_data_list,
                        double univariate_pv_target_ratio)
 {
 
+  // Sync R's .Random.seed into the C-side RNG for the whole fit (restored on
+  // return). Required for set.seed() reproducibility; mirrors jointsinglesubject.
+  Rcpp::RNGScope rng_scope;
+
   // Every nth iteration for printing verbose screen output
   int verbose_iter = 5000;
 

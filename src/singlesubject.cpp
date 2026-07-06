@@ -37,6 +37,10 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
                           double univariate_pv_target_ratio)
 {
 
+  // Sync R's .Random.seed into the C-side RNG for the whole fit (restored on
+  // return). Required for set.seed() reproducibility; mirrors jointsinglesubject.
+  Rcpp::RNGScope rng_scope;
+
   // every nth iteration for printing verbose screen output
   int verbose_iter = 5000;
 
