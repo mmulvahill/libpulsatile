@@ -18,23 +18,66 @@ test_that("joint_spec() creates valid specification", {
   expect_true("response_starting_values" %in% names(spec))
   expect_true("association_starting_values" %in% names(spec))
 
-  # Check driver priors
-  expect_equal(spec$driver_priors$mass_mean, 3.5)
+  # Check driver priors -- default is now the lognormal (log-scale) column.
+  expect_equal(spec$driver_priors$mass_mean, 1.2)
   expect_equal(spec$driver_priors$pulse_count, 12)
 
   # Check response priors
-  expect_equal(spec$response_priors$mass_mean, 3.5)
+  expect_equal(spec$response_priors$mass_mean, 1.2)
   expect_equal(spec$response_priors$pulse_count, 12)
 
   # Check association priors
   expect_equal(spec$association_priors$log_rho_mean, 0.0)
   expect_equal(spec$association_priors$log_nu_mean, 3.0)
 
-  # Check starting values
-  expect_equal(spec$driver_starting_values$mass_mean, 3.5)
-  expect_equal(spec$response_starting_values$mass_mean, 3.5)
+  # Check starting values (log-scale defaults)
+  expect_equal(spec$driver_starting_values$mass_mean, 1.0)
+  expect_equal(spec$response_starting_values$mass_mean, 1.0)
   expect_equal(spec$association_starting_values$rho, 1.0)
   expect_equal(spec$association_starting_values$nu, 20.0)
+})
+
+
+test_that("joint_spec() defaults to lognormal / uniform and converts SD starts", {
+  spec <- joint_spec()
+  expect_true(isTRUE(spec$driver_priors$lognormal_pulses))
+  expect_true(isTRUE(spec$driver_priors$uniform_sd_prior))
+  expect_true(isTRUE(spec$response_priors$lognormal_pulses))
+  expect_true(isTRUE(spec$response_priors$uniform_sd_prior))
+  # Log-scale prior means and starting values.
+  expect_equal(spec$driver_priors$width_mean, 3.5)
+  expect_equal(spec$driver_starting_values$width_mean, 3.0)
+  # Starting SD converted to the log scale (0.7) so it sits inside the C++
+  # Uniform(0, 10) support -- the natural-scale 35 would be outside it.
+  expect_equal(spec$driver_starting_values$width_sd, 0.7)
+  expect_equal(spec$response_starting_values$width_sd, 0.7)
+  # Log-scale proposal variances.
+  expect_true(spec$proposal_variances$driver_width_mean <= 1)
+  expect_true(spec$proposal_variances$driver_pulse_width <= 1)
+  expect_error(joint_spec(pulse_distribution = "banana"), "should be one of")
+})
+
+
+test_that("joint_spec() truncnorm/half_cauchy reproduces the pre-change spec", {
+  spec <- joint_spec(pulse_distribution = "truncnorm",
+                     sd_prior = "half_cauchy",
+                     student_t_pulses = TRUE)
+  expect_equal(spec$driver_priors$mass_mean, 3.5)
+  expect_equal(spec$driver_priors$width_mean, 42)
+  expect_equal(spec$driver_priors$width_variance, 1000)
+  expect_equal(spec$driver_priors$mass_sd_param, 5)
+  expect_equal(spec$driver_priors$width_sd_param, 5)
+  expect_equal(spec$response_priors$mass_mean, 3.5)
+  expect_equal(spec$response_priors$width_mean, 42)
+  expect_equal(spec$driver_starting_values$mass_mean, 3.5)
+  expect_equal(spec$driver_starting_values$width_mean, 42)
+  expect_equal(spec$driver_starting_values$mass_sd, 1.6)
+  expect_equal(spec$driver_starting_values$width_sd, 35)
+  expect_equal(spec$response_starting_values$width_sd, 35)
+  expect_equal(spec$proposal_variances$driver_width_mean, 3700)
+  expect_equal(spec$proposal_variances$driver_pulse_width, 15000)
+  expect_equal(spec$proposal_variances$driver_width_sd, 4000)
+  expect_equal(spec$proposal_variances$response_width_mean, 3700)
 })
 
 
@@ -78,13 +121,14 @@ test_that("joint_spec() validates input parameters", {
 
 
 test_that("joint_spec() carries student_t_pulses into both hormones", {
+  # Default is now Gaussian (student_t_pulses = FALSE).
   spec <- joint_spec()
-  expect_true(isTRUE(spec$driver_priors$student_t_pulses))
-  expect_true(isTRUE(spec$response_priors$student_t_pulses))
+  expect_false(isTRUE(spec$driver_priors$student_t_pulses))
+  expect_false(isTRUE(spec$response_priors$student_t_pulses))
 
-  spec_g <- joint_spec(student_t_pulses = FALSE)
-  expect_false(isTRUE(spec_g$driver_priors$student_t_pulses))
-  expect_false(isTRUE(spec_g$response_priors$student_t_pulses))
+  spec_t <- joint_spec(student_t_pulses = TRUE)
+  expect_true(isTRUE(spec_t$driver_priors$student_t_pulses))
+  expect_true(isTRUE(spec_t$response_priors$student_t_pulses))
 })
 
 

@@ -107,14 +107,32 @@
 #' @param pv_log_rho Proposal variance for log(rho)
 #' @param pv_log_nu Proposal variance for log(nu)
 #'
-#' @param student_t_pulses Logical. If \code{TRUE} (default), pulse mass and
-#'   width random effects follow a Student-t distribution via a per-pulse
-#'   t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+#' @param pulse_distribution Character, one of \code{"lognormal"} (default) or
+#'   \code{"truncnorm"}, applied to both hormones. \code{"lognormal"} places the
+#'   pulse mass/width random effects on the log scale and selects the log-scale
+#'   numeric defaults for any argument left unspecified; \code{"truncnorm"} keeps
+#'   the legacy natural-scale truncated-normal random effects and defaults.
+#' @param sd_prior Character, one of \code{"uniform"} (default) or
+#'   \code{"half_cauchy"}, applied to both hormones. Selects the prior on the
+#'   pulse-to-pulse SDs; controls whether \code{prior_*_sd_mass}/
+#'   \code{prior_*_sd_width} are the Uniform upper bound or the half-Cauchy scale.
+#' @param student_t_pulses Logical. If \code{TRUE}, pulse mass and width random
+#'   effects follow a Student-t distribution via a per-pulse t-scale
+#'   (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE} (default), the
 #'   t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
 #'   pulse random effects. Applies to both the driver and response hormones.
 #'   Setting this to \code{FALSE} removes the weak-identifiability ridge between
 #'   the pulse-to-pulse SD and the per-pulse t-scales, which can improve mixing
 #'   of the SD parameters (notably the SD of pulse width).
+#'
+#' @section Breaking change (default parameterization):
+#' The out-of-the-box defaults are now \code{{lognormal, uniform, gaussian}}
+#' (both hormones), mirroring the single-subject paper model. Previously the
+#' defaults were \code{{truncnorm, half_cauchy, student-t}}. Under
+#' \code{"lognormal"} the mass/width prior means, starting values, and proposal
+#' variances live on the LOG scale. Call \code{joint_spec(pulse_distribution =
+#' "truncnorm", sd_prior = "half_cauchy", student_t_pulses = TRUE)} for the exact
+#' pre-change behavior.
 #'
 #' @return A list of class \code{joint_spec} containing:
 #'   \item{location_prior}{Type of location prior ("strauss")}
@@ -144,35 +162,35 @@ joint_spec <- function(
   location_prior_type = "strauss",
 
   # Driver priors
-  prior_driver_mass_mean = 3.5,
-  prior_driver_mass_var = 100,
-  prior_driver_width_mean = 42,
-  prior_driver_width_var = 1000,
+  prior_driver_mass_mean = NULL,
+  prior_driver_mass_var = NULL,
+  prior_driver_width_mean = NULL,
+  prior_driver_width_var = NULL,
   prior_driver_baseline_mean = 2.6,
   prior_driver_baseline_var = 100,
   prior_driver_halflife_mean = 45,
   prior_driver_halflife_var = 100,
   prior_driver_error_alpha = 0.0001,
   prior_driver_error_beta = 0.0001,
-  prior_driver_sd_mass = 5,
-  prior_driver_sd_width = 5,
+  prior_driver_sd_mass = NULL,
+  prior_driver_sd_width = NULL,
   prior_driver_pulse_count = 12,
   prior_driver_location_gamma = 0,
   prior_driver_location_range = 40,
 
   # Response priors
-  prior_response_mass_mean = 3.5,
-  prior_response_mass_var = 100,
-  prior_response_width_mean = 42,
-  prior_response_width_var = 1000,
+  prior_response_mass_mean = NULL,
+  prior_response_mass_var = NULL,
+  prior_response_width_mean = NULL,
+  prior_response_width_var = NULL,
   prior_response_baseline_mean = 2.6,
   prior_response_baseline_var = 100,
   prior_response_halflife_mean = 45,
   prior_response_halflife_var = 100,
   prior_response_error_alpha = 0.0001,
   prior_response_error_beta = 0.0001,
-  prior_response_sd_mass = 5,
-  prior_response_sd_width = 5,
+  prior_response_sd_mass = NULL,
+  prior_response_sd_width = NULL,
   prior_response_pulse_count = 12,
   prior_response_location_gamma = 0,
   prior_response_location_range = 40,
@@ -184,22 +202,22 @@ joint_spec <- function(
   prior_log_nu_var = 1.0,
 
   # Driver starting values
-  sv_driver_mass_mean = 3.5,
-  sv_driver_width_mean = 42,
+  sv_driver_mass_mean = NULL,
+  sv_driver_width_mean = NULL,
   sv_driver_baseline_mean = 2.6,
   sv_driver_halflife_mean = 45,
   sv_driver_error_var = 0.005,
-  sv_driver_mass_sd = 1.6,
-  sv_driver_width_sd = 35,
+  sv_driver_mass_sd = NULL,
+  sv_driver_width_sd = NULL,
 
   # Response starting values
-  sv_response_mass_mean = 3.5,
-  sv_response_width_mean = 42,
+  sv_response_mass_mean = NULL,
+  sv_response_width_mean = NULL,
   sv_response_baseline_mean = 2.6,
   sv_response_halflife_mean = 45,
   sv_response_error_var = 0.005,
-  sv_response_mass_sd = 1.6,
-  sv_response_width_sd = 35,
+  sv_response_mass_sd = NULL,
+  sv_response_width_sd = NULL,
 
   # Association starting values
   sv_rho = 1.0,
@@ -208,12 +226,12 @@ joint_spec <- function(
   # Driver proposal variances
   pv_driver_baseline = 0.02,
   pv_driver_halflife = 1.5,
-  pv_driver_mean_pulse_mass = 6,
-  pv_driver_mean_pulse_width = 3700,
-  pv_driver_indiv_pulse_mass = 1,
-  pv_driver_indiv_pulse_width = 15000,
-  pv_driver_sd_pulse_mass = 4.5,
-  pv_driver_sd_pulse_width = 4000,
+  pv_driver_mean_pulse_mass = NULL,
+  pv_driver_mean_pulse_width = NULL,
+  pv_driver_indiv_pulse_mass = NULL,
+  pv_driver_indiv_pulse_width = NULL,
+  pv_driver_sd_pulse_mass = NULL,
+  pv_driver_sd_pulse_width = NULL,
   pv_driver_sdscale_pulse_mass = 4,
   pv_driver_sdscale_pulse_width = 4,
   pv_driver_pulse_location = 65,
@@ -221,12 +239,12 @@ joint_spec <- function(
   # Response proposal variances
   pv_response_baseline = 0.02,
   pv_response_halflife = 1.5,
-  pv_response_mean_pulse_mass = 6,
-  pv_response_mean_pulse_width = 3700,
-  pv_response_indiv_pulse_mass = 1,
-  pv_response_indiv_pulse_width = 15000,
-  pv_response_sd_pulse_mass = 4.5,
-  pv_response_sd_pulse_width = 4000,
+  pv_response_mean_pulse_mass = NULL,
+  pv_response_mean_pulse_width = NULL,
+  pv_response_indiv_pulse_mass = NULL,
+  pv_response_indiv_pulse_width = NULL,
+  pv_response_sd_pulse_mass = NULL,
+  pv_response_sd_pulse_width = NULL,
   pv_response_sdscale_pulse_mass = 4,
   pv_response_sdscale_pulse_width = 4,
   pv_response_pulse_location = 65,
@@ -235,14 +253,19 @@ joint_spec <- function(
   pv_log_rho = 0.1,
   pv_log_nu = 0.1,
 
-  # Random-effects distribution (applies to both hormones)
-  student_t_pulses = TRUE
+  # Random-effects parameterization (applies to both hormones)
+  pulse_distribution = c("lognormal", "truncnorm"),
+  sd_prior = c("uniform", "half_cauchy"),
+  student_t_pulses = FALSE
 ) {
 
   # Input validation
   if (location_prior_type != "strauss") {
     stop("location_prior_type must be 'strauss' (only option currently supported)")
   }
+
+  pulse_distribution <- match.arg(pulse_distribution)
+  sd_prior           <- match.arg(sd_prior)
 
   if (!is.logical(student_t_pulses) || length(student_t_pulses) != 1L ||
       is.na(student_t_pulses)) {
@@ -252,6 +275,67 @@ joint_spec <- function(
   if (prior_driver_pulse_count <= 0 || prior_response_pulse_count <= 0) {
     stop("prior pulse counts must be > 0")
   }
+
+  # Parameterization flags carried through both priors lists into C++.
+  lognormal_pulses <- identical(pulse_distribution, "lognormal")
+  uniform_sd_prior <- identical(sd_prior, "uniform")
+
+  # Conditional numeric defaults: driver and response each mirror the
+  # single-subject (thesis) parameterization. Any argument left NULL is resolved
+  # from the parameterization-specific table (log-scale for "lognormal", legacy
+  # natural-scale for "truncnorm"); a user-supplied value overrides. Under the
+  # log-scale default the pulse-to-pulse SD has a Uniform(0, 10) prior (the C++
+  # default bound), so the starting SDs must sit inside it -- hence the converted
+  # sv_*_width_sd = 0.7 rather than the natural-scale 35.
+  ln_defaults <- list(
+    mass_mean = 1.2,  mass_var = 25,  width_mean = 3.5,  width_var = 25,
+    sd_mass = 10,     sd_width = 10,
+    sv_mass_mean = 1.0, sv_width_mean = 3.0, sv_mass_sd = 0.5, sv_width_sd = 0.7,
+    pv_mean_pulse_mass = 0.5,  pv_mean_pulse_width = 0.5,
+    pv_indiv_pulse_mass = 0.25, pv_indiv_pulse_width = 0.25,
+    pv_sd_pulse_mass = 0.1,     pv_sd_pulse_width = 0.1)
+  tn_defaults <- list(
+    mass_mean = 3.5,  mass_var = 100, width_mean = 42,   width_var = 1000,
+    sd_mass = 5,      sd_width = 5,
+    sv_mass_mean = 3.5, sv_width_mean = 42, sv_mass_sd = 1.6, sv_width_sd = 35,
+    pv_mean_pulse_mass = 6,    pv_mean_pulse_width = 3700,
+    pv_indiv_pulse_mass = 1,   pv_indiv_pulse_width = 15000,
+    pv_sd_pulse_mass = 4.5,    pv_sd_pulse_width = 4000)
+  d <- if (lognormal_pulses) ln_defaults else tn_defaults
+  r <- function(value, name) if (is.null(value)) d[[name]] else value
+
+  prior_driver_mass_mean   <- r(prior_driver_mass_mean,   "mass_mean")
+  prior_driver_mass_var    <- r(prior_driver_mass_var,    "mass_var")
+  prior_driver_width_mean  <- r(prior_driver_width_mean,  "width_mean")
+  prior_driver_width_var   <- r(prior_driver_width_var,   "width_var")
+  prior_driver_sd_mass     <- r(prior_driver_sd_mass,     "sd_mass")
+  prior_driver_sd_width    <- r(prior_driver_sd_width,    "sd_width")
+  prior_response_mass_mean  <- r(prior_response_mass_mean,  "mass_mean")
+  prior_response_mass_var   <- r(prior_response_mass_var,   "mass_var")
+  prior_response_width_mean <- r(prior_response_width_mean, "width_mean")
+  prior_response_width_var  <- r(prior_response_width_var,  "width_var")
+  prior_response_sd_mass    <- r(prior_response_sd_mass,    "sd_mass")
+  prior_response_sd_width   <- r(prior_response_sd_width,   "sd_width")
+  sv_driver_mass_mean   <- r(sv_driver_mass_mean,   "sv_mass_mean")
+  sv_driver_width_mean  <- r(sv_driver_width_mean,  "sv_width_mean")
+  sv_driver_mass_sd     <- r(sv_driver_mass_sd,     "sv_mass_sd")
+  sv_driver_width_sd    <- r(sv_driver_width_sd,    "sv_width_sd")
+  sv_response_mass_mean  <- r(sv_response_mass_mean,  "sv_mass_mean")
+  sv_response_width_mean <- r(sv_response_width_mean, "sv_width_mean")
+  sv_response_mass_sd    <- r(sv_response_mass_sd,    "sv_mass_sd")
+  sv_response_width_sd   <- r(sv_response_width_sd,   "sv_width_sd")
+  pv_driver_mean_pulse_mass   <- r(pv_driver_mean_pulse_mass,   "pv_mean_pulse_mass")
+  pv_driver_mean_pulse_width  <- r(pv_driver_mean_pulse_width,  "pv_mean_pulse_width")
+  pv_driver_indiv_pulse_mass  <- r(pv_driver_indiv_pulse_mass,  "pv_indiv_pulse_mass")
+  pv_driver_indiv_pulse_width <- r(pv_driver_indiv_pulse_width, "pv_indiv_pulse_width")
+  pv_driver_sd_pulse_mass     <- r(pv_driver_sd_pulse_mass,     "pv_sd_pulse_mass")
+  pv_driver_sd_pulse_width    <- r(pv_driver_sd_pulse_width,    "pv_sd_pulse_width")
+  pv_response_mean_pulse_mass   <- r(pv_response_mean_pulse_mass,   "pv_mean_pulse_mass")
+  pv_response_mean_pulse_width  <- r(pv_response_mean_pulse_width,  "pv_mean_pulse_width")
+  pv_response_indiv_pulse_mass  <- r(pv_response_indiv_pulse_mass,  "pv_indiv_pulse_mass")
+  pv_response_indiv_pulse_width <- r(pv_response_indiv_pulse_width, "pv_indiv_pulse_width")
+  pv_response_sd_pulse_mass     <- r(pv_response_sd_pulse_mass,     "pv_sd_pulse_mass")
+  pv_response_sd_pulse_width    <- r(pv_response_sd_pulse_width,    "pv_sd_pulse_width")
 
   # Validate Strauss prior parameters for driver
   if (prior_driver_location_gamma < 0 || prior_driver_location_gamma > 1) {
@@ -293,11 +377,15 @@ joint_spec <- function(
         width_variance = prior_driver_width_var,
         mass_sd_param = prior_driver_sd_mass,
         width_sd_param = prior_driver_sd_width,
+        mass_sd_max = prior_driver_sd_mass,
+        width_sd_max = prior_driver_sd_width,
         error_alpha = prior_driver_error_alpha,
         error_beta = prior_driver_error_beta,
         pulse_count = prior_driver_pulse_count,
         strauss_repulsion = prior_driver_location_gamma,
         strauss_repulsion_range = prior_driver_location_range,
+        lognormal_pulses = lognormal_pulses,
+        uniform_sd_prior = uniform_sd_prior,
         student_t_pulses = student_t_pulses
       ),
 
@@ -313,11 +401,15 @@ joint_spec <- function(
         width_variance = prior_response_width_var,
         mass_sd_param = prior_response_sd_mass,
         width_sd_param = prior_response_sd_width,
+        mass_sd_max = prior_response_sd_mass,
+        width_sd_max = prior_response_sd_width,
         error_alpha = prior_response_error_alpha,
         error_beta = prior_response_error_beta,
         pulse_count = prior_response_pulse_count,
         strauss_repulsion = prior_response_location_gamma,
         strauss_repulsion_range = prior_response_location_range,
+        lognormal_pulses = lognormal_pulses,
+        uniform_sd_prior = uniform_sd_prior,
         student_t_pulses = student_t_pulses
       ),
 

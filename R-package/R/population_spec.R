@@ -69,14 +69,32 @@
 #' @param pv_sdscale_pulse_mass Proposal variance for pulse mass t-distribution scales
 #' @param pv_sdscale_pulse_width Proposal variance for pulse width t-distribution scales
 #' @param pv_pulse_location Proposal variance for pulse locations
-#' @param student_t_pulses Logical. If \code{TRUE} (default), pulse mass and
-#'   width random effects follow a Student-t distribution via a per-pulse
-#'   t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+#' @param pulse_distribution Character, one of \code{"lognormal"} (default) or
+#'   \code{"truncnorm"}. \code{"lognormal"} places the pulse mass/width random
+#'   effects on the log scale -- the Horton et al. (2017) parameterization --
+#'   and selects the paper-aligned (log-scale) numeric defaults for any argument
+#'   left unspecified. \code{"truncnorm"} keeps the legacy natural-scale
+#'   truncated-normal random effects and the legacy natural-scale defaults.
+#' @param sd_prior Character, one of \code{"uniform"} (default) or
+#'   \code{"half_cauchy"}. Selects the prior on the pulse-to-pulse and
+#'   subject-to-subject SDs. Horton uses \code{"uniform"}.
+#' @param student_t_pulses Logical. If \code{TRUE}, pulse mass and width random
+#'   effects follow a Student-t distribution via a per-pulse t-scale
+#'   (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE} (default), the
 #'   t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
 #'   pulse random effects. Applies to every subject. Setting this to
 #'   \code{FALSE} removes the weak-identifiability ridge between the
 #'   pulse-to-pulse SD and the per-pulse t-scales, which can improve mixing of
 #'   the SD parameters (notably the SD of pulse width).
+#'
+#' @section Breaking change (default parameterization):
+#' The out-of-the-box defaults are now \code{{lognormal, uniform, gaussian}},
+#' reproducing the published population model (Horton et al. 2017). Previously
+#' the defaults were \code{{truncnorm, half_cauchy, student-t}}. This flips
+#' fitted results and changes the meaning of \code{prior_width_mean_mean} /
+#' \code{sv_width_sd} etc.: under \code{"lognormal"} these are on the LOG scale.
+#' Call \code{population_spec(pulse_distribution = "truncnorm", sd_prior =
+#' "half_cauchy", student_t_pulses = TRUE)} for the exact pre-change behavior.
 #'
 #' @return A list of class \code{population_spec} containing:
 #'   \item{location_prior}{Type of location prior ("strauss" or "order-statistic")}
@@ -100,90 +118,163 @@
 population_spec <- function(
   # Location prior
   location_prior_type = c("strauss", "order-statistic"),
-  
+
   # Population-level priors (means)
-  prior_mass_mean_mean = 3.5,
-  prior_mass_mean_var = 100,
-  prior_width_mean_mean = 42,
-  prior_width_mean_var = 1000,
+  prior_mass_mean_mean = NULL,
+  prior_mass_mean_var = NULL,
+  prior_width_mean_mean = NULL,
+  prior_width_mean_var = NULL,
   prior_baseline_mean_mean = 2.6,
   prior_baseline_mean_var = 100,
   prior_halflife_mean_mean = 45,
-  prior_halflife_mean_var = 100,
-  
+  prior_halflife_mean_var = NULL,
+
   # Subject-to-subject variation priors (uniform upper bounds)
-  prior_mass_mean_sd_max = 5,
-  prior_width_mean_sd_max = 30,
-  prior_baseline_sd_max = 3,
-  prior_halflife_sd_max = 20,
-  
+  prior_mass_mean_sd_max = NULL,
+  prior_width_mean_sd_max = NULL,
+  prior_baseline_sd_max = NULL,
+  prior_halflife_sd_max = NULL,
+
   # Pulse-to-pulse variation priors (uniform upper bounds)
-  prior_mass_sd_max = 5,
-  prior_width_sd_max = 30,
-  
+  prior_mass_sd_max = NULL,
+  prior_width_sd_max = NULL,
+
   # Error and location priors
   prior_error_alpha = 0.0001,
   prior_error_beta = 0.0001,
   prior_mean_pulse_count = 12,
   prior_location_gamma = 0,
   prior_location_range = 40,
-  
+
   # Population starting values
-  sv_mass_mean = 3.5,
-  sv_width_mean = 42,
+  sv_mass_mean = NULL,
+  sv_width_mean = NULL,
   sv_baseline_mean = 2.6,
   sv_halflife_mean = 45,
-  sv_mass_mean_sd = 1.0,
-  sv_width_mean_sd = 10,
+  sv_mass_mean_sd = NULL,
+  sv_width_mean_sd = NULL,
   sv_baseline_sd = 0.5,
   sv_halflife_sd = 5,
-  sv_mass_sd = 1.6,
-  sv_width_sd = 15,
+  sv_mass_sd = NULL,
+  sv_width_sd = NULL,
   sv_error_var = 0.005,
-  
+
   # Proposal variances - population parameters
-  pv_mass_mean = 6,
-  pv_width_mean = 3700,
+  pv_mass_mean = NULL,
+  pv_width_mean = NULL,
   pv_baseline_mean = 0.02,
   pv_halflife_mean = 1.5,
-  pv_mass_mean_sd = 2,
-  pv_width_mean_sd = 500,
+  pv_mass_mean_sd = NULL,
+  pv_width_mean_sd = NULL,
   pv_baseline_sd = 0.5,
   pv_halflife_sd = 3,
-  pv_mass_sd = 4.5,
-  pv_width_sd = 4000,
-  
+  pv_mass_sd = NULL,
+  pv_width_sd = NULL,
+
   # Proposal variances - subject-level parameters
   pv_subject_baseline = 0.02,
   pv_subject_halflife = 1.5,
-  pv_subject_mean_pulse_mass = 6,
-  pv_subject_mean_pulse_width = 3700,
-  pv_indiv_pulse_mass = 1,
-  pv_indiv_pulse_width = 15000,
+  pv_subject_mean_pulse_mass = NULL,
+  pv_subject_mean_pulse_width = NULL,
+  pv_indiv_pulse_mass = NULL,
+  pv_indiv_pulse_width = NULL,
   pv_sdscale_pulse_mass = 4,
   pv_sdscale_pulse_width = 4,
   pv_pulse_location = 65,
 
-  # Random-effects distribution
-  student_t_pulses = TRUE
+  # Random-effects parameterization
+  pulse_distribution = c("lognormal", "truncnorm"),
+  sd_prior = c("uniform", "half_cauchy"),
+  student_t_pulses = FALSE
 ) {
 
   # Input validation
   location_prior_type <- match.arg(location_prior_type)
+  pulse_distribution  <- match.arg(pulse_distribution)
+  sd_prior            <- match.arg(sd_prior)
 
   if (!is.logical(student_t_pulses) || length(student_t_pulses) != 1L ||
       is.na(student_t_pulses)) {
     stop("student_t_pulses must be a single logical (TRUE or FALSE)")
   }
-  
+
   if (length(location_prior_type) > 1L) {
     stop(paste("location_prior_type is a required argument -- choose",
                "'order-statistic' or 'strauss'"))
   }
-  
+
   if (prior_mean_pulse_count <= 0) {
     stop("prior_mean_pulse_count must be > 0")
   }
+
+  # Parameterization flags carried through the priors list into C++.
+  lognormal_pulses <- identical(pulse_distribution, "lognormal")
+  uniform_sd_prior <- identical(sd_prior, "uniform")
+
+  # Conditional numeric defaults (Horton-matched log-scale vs. legacy natural
+  # scale). Any argument left NULL is resolved from the parameterization-specific
+  # table; a user-supplied value overrides. "truncnorm" reproduces the exact
+  # pre-change spec; "lognormal" uses log-scale priors, starting values within
+  # the Uniform(0, 10) SD support, and log-scale proposal variances that mix.
+  ln_defaults <- list(
+    prior_mass_mean_mean = 1.0,  prior_mass_mean_var = 100,
+    prior_width_mean_mean = 3.0, prior_width_mean_var = 100,
+    prior_halflife_mean_var = 1000,
+    prior_mass_mean_sd_max = 10, prior_width_mean_sd_max = 10,
+    prior_baseline_sd_max = 10,  prior_halflife_sd_max = 10,
+    prior_mass_sd_max = 10,      prior_width_sd_max = 10,
+    sv_mass_mean = 1.0,          sv_width_mean = 3.0,
+    sv_mass_mean_sd = 0.5,       sv_width_mean_sd = 0.5,
+    sv_mass_sd = 0.5,            sv_width_sd = 0.7,
+    pv_mass_mean = 0.5,          pv_width_mean = 0.5,
+    pv_mass_mean_sd = 0.1,       pv_width_mean_sd = 0.1,
+    pv_mass_sd = 0.1,            pv_width_sd = 0.1,
+    pv_subject_mean_pulse_mass = 0.5, pv_subject_mean_pulse_width = 0.5,
+    pv_indiv_pulse_mass = 0.25,  pv_indiv_pulse_width = 0.25)
+  tn_defaults <- list(
+    prior_mass_mean_mean = 3.5,  prior_mass_mean_var = 100,
+    prior_width_mean_mean = 42,  prior_width_mean_var = 1000,
+    prior_halflife_mean_var = 100,
+    prior_mass_mean_sd_max = 5,  prior_width_mean_sd_max = 30,
+    prior_baseline_sd_max = 3,   prior_halflife_sd_max = 20,
+    prior_mass_sd_max = 5,       prior_width_sd_max = 30,
+    sv_mass_mean = 3.5,          sv_width_mean = 42,
+    sv_mass_mean_sd = 1.0,       sv_width_mean_sd = 10,
+    sv_mass_sd = 1.6,            sv_width_sd = 15,
+    pv_mass_mean = 6,            pv_width_mean = 3700,
+    pv_mass_mean_sd = 2,         pv_width_mean_sd = 500,
+    pv_mass_sd = 4.5,            pv_width_sd = 4000,
+    pv_subject_mean_pulse_mass = 6, pv_subject_mean_pulse_width = 3700,
+    pv_indiv_pulse_mass = 1,     pv_indiv_pulse_width = 15000)
+  defaults <- if (lognormal_pulses) ln_defaults else tn_defaults
+  resolve <- function(value, name) if (is.null(value)) defaults[[name]] else value
+  prior_mass_mean_mean    <- resolve(prior_mass_mean_mean,    "prior_mass_mean_mean")
+  prior_mass_mean_var     <- resolve(prior_mass_mean_var,     "prior_mass_mean_var")
+  prior_width_mean_mean   <- resolve(prior_width_mean_mean,   "prior_width_mean_mean")
+  prior_width_mean_var    <- resolve(prior_width_mean_var,    "prior_width_mean_var")
+  prior_halflife_mean_var <- resolve(prior_halflife_mean_var, "prior_halflife_mean_var")
+  prior_mass_mean_sd_max  <- resolve(prior_mass_mean_sd_max,  "prior_mass_mean_sd_max")
+  prior_width_mean_sd_max <- resolve(prior_width_mean_sd_max, "prior_width_mean_sd_max")
+  prior_baseline_sd_max   <- resolve(prior_baseline_sd_max,   "prior_baseline_sd_max")
+  prior_halflife_sd_max   <- resolve(prior_halflife_sd_max,   "prior_halflife_sd_max")
+  prior_mass_sd_max       <- resolve(prior_mass_sd_max,       "prior_mass_sd_max")
+  prior_width_sd_max      <- resolve(prior_width_sd_max,      "prior_width_sd_max")
+  sv_mass_mean            <- resolve(sv_mass_mean,            "sv_mass_mean")
+  sv_width_mean           <- resolve(sv_width_mean,           "sv_width_mean")
+  sv_mass_mean_sd         <- resolve(sv_mass_mean_sd,         "sv_mass_mean_sd")
+  sv_width_mean_sd        <- resolve(sv_width_mean_sd,        "sv_width_mean_sd")
+  sv_mass_sd              <- resolve(sv_mass_sd,              "sv_mass_sd")
+  sv_width_sd             <- resolve(sv_width_sd,             "sv_width_sd")
+  pv_mass_mean            <- resolve(pv_mass_mean,            "pv_mass_mean")
+  pv_width_mean           <- resolve(pv_width_mean,           "pv_width_mean")
+  pv_mass_mean_sd         <- resolve(pv_mass_mean_sd,         "pv_mass_mean_sd")
+  pv_width_mean_sd        <- resolve(pv_width_mean_sd,        "pv_width_mean_sd")
+  pv_mass_sd              <- resolve(pv_mass_sd,              "pv_mass_sd")
+  pv_width_sd             <- resolve(pv_width_sd,             "pv_width_sd")
+  pv_subject_mean_pulse_mass  <- resolve(pv_subject_mean_pulse_mass,  "pv_subject_mean_pulse_mass")
+  pv_subject_mean_pulse_width <- resolve(pv_subject_mean_pulse_width, "pv_subject_mean_pulse_width")
+  pv_indiv_pulse_mass     <- resolve(pv_indiv_pulse_mass,     "pv_indiv_pulse_mass")
+  pv_indiv_pulse_width    <- resolve(pv_indiv_pulse_width,    "pv_indiv_pulse_width")
   
   # Validate Strauss prior parameters
   if (location_prior_type == "strauss") {
@@ -268,6 +359,8 @@ population_spec <- function(
         pulse_count = prior_mean_pulse_count,
         strauss_repulsion = prior_location_gamma,
         strauss_repulsion_range = prior_location_range,
+        lognormal_pulses = lognormal_pulses,
+        uniform_sd_prior = uniform_sd_prior,
         student_t_pulses = student_t_pulses
       ),
       

@@ -6,56 +6,58 @@
 \usage{
 population_spec(
   location_prior_type = c("strauss", "order-statistic"),
-  prior_mass_mean_mean = 3.5,
-  prior_mass_mean_var = 100,
-  prior_width_mean_mean = 42,
-  prior_width_mean_var = 1000,
+  prior_mass_mean_mean = NULL,
+  prior_mass_mean_var = NULL,
+  prior_width_mean_mean = NULL,
+  prior_width_mean_var = NULL,
   prior_baseline_mean_mean = 2.6,
   prior_baseline_mean_var = 100,
   prior_halflife_mean_mean = 45,
-  prior_halflife_mean_var = 100,
-  prior_mass_mean_sd_max = 5,
-  prior_width_mean_sd_max = 30,
-  prior_baseline_sd_max = 3,
-  prior_halflife_sd_max = 20,
-  prior_mass_sd_max = 5,
-  prior_width_sd_max = 30,
+  prior_halflife_mean_var = NULL,
+  prior_mass_mean_sd_max = NULL,
+  prior_width_mean_sd_max = NULL,
+  prior_baseline_sd_max = NULL,
+  prior_halflife_sd_max = NULL,
+  prior_mass_sd_max = NULL,
+  prior_width_sd_max = NULL,
   prior_error_alpha = 1e-04,
   prior_error_beta = 1e-04,
   prior_mean_pulse_count = 12,
   prior_location_gamma = 0,
   prior_location_range = 40,
-  sv_mass_mean = 3.5,
-  sv_width_mean = 42,
+  sv_mass_mean = NULL,
+  sv_width_mean = NULL,
   sv_baseline_mean = 2.6,
   sv_halflife_mean = 45,
-  sv_mass_mean_sd = 1,
-  sv_width_mean_sd = 10,
+  sv_mass_mean_sd = NULL,
+  sv_width_mean_sd = NULL,
   sv_baseline_sd = 0.5,
   sv_halflife_sd = 5,
-  sv_mass_sd = 1.6,
-  sv_width_sd = 15,
+  sv_mass_sd = NULL,
+  sv_width_sd = NULL,
   sv_error_var = 0.005,
-  pv_mass_mean = 6,
-  pv_width_mean = 3700,
+  pv_mass_mean = NULL,
+  pv_width_mean = NULL,
   pv_baseline_mean = 0.02,
   pv_halflife_mean = 1.5,
-  pv_mass_mean_sd = 2,
-  pv_width_mean_sd = 500,
+  pv_mass_mean_sd = NULL,
+  pv_width_mean_sd = NULL,
   pv_baseline_sd = 0.5,
   pv_halflife_sd = 3,
-  pv_mass_sd = 4.5,
-  pv_width_sd = 4000,
+  pv_mass_sd = NULL,
+  pv_width_sd = NULL,
   pv_subject_baseline = 0.02,
   pv_subject_halflife = 1.5,
-  pv_subject_mean_pulse_mass = 6,
-  pv_subject_mean_pulse_width = 3700,
-  pv_indiv_pulse_mass = 1,
-  pv_indiv_pulse_width = 15000,
+  pv_subject_mean_pulse_mass = NULL,
+  pv_subject_mean_pulse_width = NULL,
+  pv_indiv_pulse_mass = NULL,
+  pv_indiv_pulse_width = NULL,
   pv_sdscale_pulse_mass = 4,
   pv_sdscale_pulse_width = 4,
   pv_pulse_location = 65,
-  student_t_pulses = TRUE
+  pulse_distribution = c("lognormal", "truncnorm"),
+  sd_prior = c("uniform", "half_cauchy"),
+  student_t_pulses = FALSE
 )
 }
 \arguments{
@@ -164,9 +166,20 @@ distribution for the pulse location prior.}
 
 \item{pv_pulse_location}{Proposal variance for pulse locations}
 
-\item{student_t_pulses}{Logical. If \code{TRUE} (default), pulse mass and
-width random effects follow a Student-t distribution via a per-pulse
-t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+\item{pulse_distribution}{Character, one of \code{"lognormal"} (default) or
+\code{"truncnorm"}. \code{"lognormal"} places the pulse mass/width random
+effects on the log scale -- the Horton et al. (2017) parameterization --
+and selects the paper-aligned (log-scale) numeric defaults for any argument
+left unspecified. \code{"truncnorm"} keeps the legacy natural-scale
+truncated-normal random effects and the legacy natural-scale defaults.}
+
+\item{sd_prior}{Character, one of \code{"uniform"} (default) or
+\code{"half_cauchy"}. Selects the prior on the pulse-to-pulse and
+subject-to-subject SDs. Horton uses \code{"uniform"}.}
+
+\item{student_t_pulses}{Logical. If \code{TRUE}, pulse mass and width random
+effects follow a Student-t distribution via a per-pulse t-scale
+(\code{tvarscale}, kappa) scale-mixture. If \code{FALSE} (default), the
 t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
 pulse random effects. Applies to every subject. Setting this to
 \code{FALSE} removes the weak-identifiability ridge between the
@@ -192,6 +205,17 @@ subjects. The population model includes:
 - Subject-to-subject variation parameters
 - Pulse-to-pulse variation parameters
 }
+\section{Breaking change (default parameterization)}{
+
+The out-of-the-box defaults are now \code{{lognormal, uniform, gaussian}},
+reproducing the published population model (Horton et al. 2017). Previously
+the defaults were \code{{truncnorm, half_cauchy, student-t}}. This flips
+fitted results and changes the meaning of \code{prior_width_mean_mean} /
+\code{sv_width_sd} etc.: under \code{"lognormal"} these are on the LOG scale.
+Call \code{population_spec(pulse_distribution = "truncnorm", sd_prior =
+"half_cauchy", student_t_pulses = TRUE)} for the exact pre-change behavior.
+}
+
 \examples{
 # Create a population specification with default values
 pop_spec <- population_spec()
