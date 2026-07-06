@@ -199,8 +199,10 @@ inline void BirthDeathProcess::add_new_pulse(Patient *patient, double position) 
   Rcpp::RNGScope rng_scope;
   double new_mass  = -1.;
   double new_width = -1.;
-  double new_tvarscale_mass  = Rf_rgamma(2, 0.5);
-  double new_tvarscale_width = Rf_rgamma(2, 0.5);
+  // With Gaussian random effects the per-pulse t-scale (kappa) is fixed at 1;
+  // otherwise draw it from the Gamma(2, 0.5) mixing distribution (Student-t).
+  double new_tvarscale_mass  = patient->gaussian_random_effects ? 1.0 : Rf_rgamma(2, 0.5);
+  double new_tvarscale_width = patient->gaussian_random_effects ? 1.0 : Rf_rgamma(2, 0.5);
   double new_t_sd_mass  = patient->estimates.mass_sd / sqrt(new_tvarscale_mass);
   double new_t_sd_width = patient->estimates.width_sd / sqrt(new_tvarscale_width);
 

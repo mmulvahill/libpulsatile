@@ -47,6 +47,14 @@ struct Patient {
   PulseList responses;
   PulseIter riter = responses.begin();
 
+  // Random-effects distribution for pulse mass/width. When false (default),
+  // pulse random effects are Student-t via the per-pulse t-scale (tvarscale,
+  // kappa) scale-mixture. When true, kappa is held at 1 for every pulse and the
+  // t-scale is never drawn, giving Gaussian pulse random effects. The
+  // birth-death process reads this to initialize new pulses, and the MCMC loop
+  // reads it to skip the t-scale draw.
+  bool gaussian_random_effects = false;
+
   //
   // For single-subject model
   //

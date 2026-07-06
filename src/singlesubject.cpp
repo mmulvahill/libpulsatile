@@ -101,6 +101,16 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
     // Now take all of this and create a Patient object
     Patient pat(data, priors, estimates);
     patient = &pat;
+
+    // Random-effects distribution: Student-t (default, via per-pulse t-scale
+    // kappa) or Gaussian (kappa fixed at 1). Carried as an optional element of
+    // the priors list so the exported signature is unchanged; older specs
+    // without it default to the Student-t behavior.
+    bool student_t_pulses = true;
+    if (inpriors.containsElementNamed("student_t_pulses")) {
+      student_t_pulses = Rcpp::as<bool>(inpriors["student_t_pulses"]);
+    }
+    pat.gaussian_random_effects = !student_t_pulses;
 //  }
 
   //double like = patient->likelihood(false);
@@ -192,8 +202,12 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
     draw_locations->sample_pulses(patient, iteration);
     draw_masses.sample_pulses(patient, iteration);
     draw_widths.sample_pulses(patient, iteration);
-    draw_tvarscale_mass.sample_pulses(patient, iteration);
-    draw_tvarscale_width.sample_pulses(patient, iteration);
+    // Skip the t-scale (kappa) draws under Gaussian random effects; kappa stays
+    // fixed at 1 for every pulse.
+    if (student_t_pulses) {
+      draw_tvarscale_mass.sample_pulses(patient, iteration);
+      draw_tvarscale_width.sample_pulses(patient, iteration);
+    }
     draw_error.sample(patient);
     chains.save_sample(patient, iteration);
 
