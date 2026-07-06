@@ -34,7 +34,7 @@ population_spec(
   sv_baseline_sd = 0.5,
   sv_halflife_sd = 5,
   sv_mass_sd = 1.6,
-  sv_width_sd = 35,
+  sv_width_sd = 15,
   sv_error_var = 0.005,
   pv_mass_mean = 6,
   pv_width_mean = 3700,

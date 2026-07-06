@@ -130,7 +130,7 @@ population_spec <- function(
   sv_baseline_sd = 0.5,
   sv_halflife_sd = 5,
   sv_mass_sd = 1.6,
-  sv_width_sd = 35,
+  sv_width_sd = 15,
   sv_error_var = 0.005,
   
   # Proposal variances - population parameters
@@ -197,11 +197,35 @@ population_spec <- function(
     stop("All SD max parameters must be > 0")
   }
   
-  if (any(c(sv_mass_mean_sd, sv_width_mean_sd, sv_baseline_sd, 
+  if (any(c(sv_mass_mean_sd, sv_width_mean_sd, sv_baseline_sd,
             sv_halflife_sd, sv_mass_sd, sv_width_sd, sv_error_var) <= 0)) {
     stop("All starting value SD and variance parameters must be > 0")
   }
-  
+
+  # Each SD parameter has a Uniform(0, max) prior, so its starting value must lie
+  # strictly inside that support -- otherwise the chain begins outside its own
+  # prior and every proposal is rejected until it happens to land in range.
+  sd_starts <- c(mass_mean_sd = sv_mass_mean_sd,
+                 width_mean_sd = sv_width_mean_sd,
+                 baseline_sd = sv_baseline_sd,
+                 halflife_sd = sv_halflife_sd,
+                 mass_sd = sv_mass_sd,
+                 width_sd = sv_width_sd)
+  sd_maxes  <- c(mass_mean_sd = prior_mass_mean_sd_max,
+                 width_mean_sd = prior_width_mean_sd_max,
+                 baseline_sd = prior_baseline_sd_max,
+                 halflife_sd = prior_halflife_sd_max,
+                 mass_sd = prior_mass_sd_max,
+                 width_sd = prior_width_sd_max)
+  bad <- which(sd_starts >= sd_maxes)
+  if (length(bad) > 0) {
+    stop(paste0("Starting value(s) outside the Uniform(0, max) prior support: ",
+                paste(sprintf("sv_%s = %g >= max %g",
+                              names(sd_starts)[bad], sd_starts[bad], sd_maxes[bad]),
+                      collapse = "; "),
+                ". Lower the starting value or raise the corresponding *_sd_max."))
+  }
+
   # Create specification object
   spec_obj <- structure(
     list(
