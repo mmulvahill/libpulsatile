@@ -113,6 +113,16 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
       student_t_pulses = (Rf_asReal(inpriors["student_t_pulses"]) != 0.0);
     }
     pat.gaussian_random_effects = !student_t_pulses;
+
+    // Pulse random-effects scale: log-normal (papers' default) or natural-scale
+    // truncated-normal (research option). Carried as an optional element of the
+    // priors list so the exported signature is unchanged; older specs without it
+    // default to the natural-scale behavior (the C++ default).
+    bool lognormal_pulses = false;
+    if (inpriors.containsElementNamed("lognormal_pulses")) {
+      lognormal_pulses = (Rf_asReal(inpriors["lognormal_pulses"]) != 0.0);
+    }
+    pat.lognormal_pulses = lognormal_pulses;
 //  }
 
   //double like = patient->likelihood(false);
@@ -130,10 +140,10 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
   // Modified Metropolis Hastings for fixed effects (mean mass & mean width)
   SS_DrawFixedEffects draw_fixeff_mass(proposalvars["mass_mean"], adj_iter,
                                        adj_max, univ_target, false, verbose,
-                                       verbose_iter);
+                                       verbose_iter, pat.lognormal_pulses);
   SS_DrawFixedEffects draw_fixeff_width(proposalvars["width_mean"], adj_iter,
                                         adj_max, univ_target, true, verbose,
-                                        verbose_iter);
+                                        verbose_iter, pat.lognormal_pulses);
 
   // Modified Metropolis Hastings for the standard deviation of the random
   // effects (sd mass & sd width) (patient level estimate)

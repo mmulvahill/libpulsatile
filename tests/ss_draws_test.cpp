@@ -11,6 +11,8 @@
 #include <bp_datastructures/utils.h>
 #include <bpmod_singlesubject/ss_draw_tvarscale.h>
 #include <bpmod_singlesubject/ss_draw_randomeffects.h>
+#include <bpmod_singlesubject/ss_draw_fixedeffects.h>
+#include <bpmod_singlesubject/ss_draw_sdrandomeffects.h>
 #include <testing/catch.h>
 
 
@@ -206,6 +208,132 @@ TEST_CASE( "random-effects posterior_function: log-normal prior + Jacobian",
     // confirming the lognormal branch is actually taken.
     pat.lognormal_pulses = false;
     double got_natural = sampler.posterior_function(&pulse, prop, &pat);
+    REQUIRE( got != Approx(got_natural) );
+  }
+}
+
+
+//
+// SS_DrawFixedEffects::posterior_function -- log-normal parameterization
+//
+// Draws the pulse-population MEAN mu (for mass/width). Under the papers'
+// log-normal model, log(theta_k) ~ N(mu, sigma^2/kappa_k), so the per-pulse
+// residuals entering mu's full conditional are formed on the LOG scale,
+// (log(theta_k) - mu), weighted by the per-pulse t-scale kappa_k. There is no
+// truncation at 0, so the truncated-normal normalizing constant (the pnorm
+// terms of the natural-scale branch) is dropped. mu is not transformed, so no
+// Jacobian appears; its normal hyperprior contributes the usual quadratic ratio.
+//
+TEST_CASE( "fixedeffects posterior_function: log-normal mean full conditional",
+           "[draw_][fixedeffects][lognormal]" ) {
+
+  DataStructuresUtils utils;
+  Patient pat = utils.create_new_test_patient_obj();
+  pat.lognormal_pulses = true;   // papers' parameterization
+
+  REQUIRE( pat.get_pulsecount() == 1 );  // single pulse -> single-term sum
+  PulseEstimates & pulse = pat.pulses.front();
+
+  const double mu       = 1.1;   // current mean of LOG mass
+  const double prop     = 0.7;   // proposed mean of LOG mass
+  const double sigma    = 0.8;   // SD of LOG mass
+  const double theta    = 5.0;   // pulse mass (natural scale, > 0)
+  const double kappa    = 1.4;   // per-pulse t-scale
+  const double pm       = 0.9;   // prior hypermean on mu
+  const double pv       = 25.0;  // prior hypervariance on mu
+
+  pat.estimates.mass_mean = mu;
+  pat.estimates.mass_sd   = sigma;
+  pat.priors.mass_mean    = pm;
+  pat.priors.mass_variance = pv;
+  pulse.mass              = theta;
+  pulse.tvarscale_mass    = kappa;
+
+  // for_width = false -> sample the mean mass; lognormal = true
+  SS_DrawFixedEffects sampler(1.0, 500, 25000, 0.35, false, false, 5000, true);
+  bool notused = false;
+  double got = sampler.posterior_function(&pat, prop, &notused);
+
+  // Closed form: normal hyperprior ratio on mu + log-scale quadratic ratio,
+  // with NO truncation normalizing constant.
+  const double logtheta   = std::log(theta);
+  const double prior_ratio = (std::pow(mu - pm, 2) - std::pow(prop - pm, 2)) /
+                             (2.0 * pv);
+  const double psum_old   = std::pow(logtheta - mu,   2) * kappa;
+  const double psum_new   = std::pow(logtheta - prop, 2) * kappa;
+  const double prop_ratio = 0.5 / (sigma * sigma) * (psum_old - psum_new);
+  const double expected   = prior_ratio + prop_ratio;
+
+  SECTION( "matches the analytic log-normal mean log-ratio" ) {
+    REQUIRE( got == Approx(expected) );
+  }
+
+  SECTION( "differs from the natural-scale parameterization" ) {
+    // A separate natural-scale sampler over the same patient/pulse uses
+    // (theta - mu) residuals and keeps the pnorm truncation terms, so the ratio
+    // must differ -- confirming the lognormal branch is actually taken.
+    SS_DrawFixedEffects sampler_nat(1.0, 500, 25000, 0.35, false, false, 5000, false);
+    pat.lognormal_pulses = false;
+    double got_natural = sampler_nat.posterior_function(&pat, prop, &notused);
+    REQUIRE( got != Approx(got_natural) );
+  }
+}
+
+
+//
+// SS_DrawSDRandomEffects::posterior_function -- log-normal parameterization
+//
+// Draws the pulse-to-pulse SD sigma. Under the log-normal model the pulse
+// residuals are formed on the LOG scale, (log(theta_k) - mu), weighted by
+// kappa_k; there is no truncation at 0, so the truncated-normal normalizing
+// constants (old_int/new_int) are dropped. The Gaussian-density n*log(sigma)
+// Jacobian, the precision term, and the half-Cauchy prior ratio are unchanged.
+//
+TEST_CASE( "sdrandomeffects posterior_function: log-normal SD full conditional",
+           "[draw_][sdrandomeffects][lognormal]" ) {
+
+  DataStructuresUtils utils;
+  Patient pat = utils.create_new_test_patient_obj();
+  pat.lognormal_pulses = true;   // papers' parameterization
+
+  REQUIRE( pat.get_pulsecount() == 1 );  // single pulse -> single-term sum
+  PulseEstimates & pulse = pat.pulses.front();
+
+  const double mu       = 1.1;   // mean of LOG mass
+  const double sigma    = 0.8;   // current SD of LOG mass
+  const double prop     = 1.3;   // proposed SD of LOG mass
+  const double theta    = 5.0;   // pulse mass (natural scale, > 0)
+  const double kappa    = 1.4;   // per-pulse t-scale
+  const double cauchy   = 5.0;   // half-Cauchy scale parameter
+
+  pat.estimates.mass_mean  = mu;
+  pat.estimates.mass_sd    = sigma;
+  pat.priors.mass_sd_param = cauchy;
+  pulse.mass               = theta;
+  pulse.tvarscale_mass     = kappa;
+
+  // for_width = false -> sample the SD of pulse masses
+  SS_DrawSDRandomEffects sampler(1.0, 500, 25000, 0.35, false, false, 5000);
+  double got = sampler.posterior_function(&pat, prop, &pat);
+
+  // Closed form (log-normal): no truncation constant.
+  const double logtheta    = std::log(theta);
+  const double third_part  = kappa * (logtheta - mu) * (logtheta - mu);
+  const double first_part  = pat.get_pulsecount() * (std::log(sigma) - std::log(prop));
+  const double second_part = 0.5 * ((1.0 / (sigma * sigma)) - (1.0 / (prop * prop)));
+  const double fourth_part = std::log(cauchy + sigma * sigma) -
+                             std::log(cauchy + prop * prop);
+  const double expected    = first_part + second_part * third_part + fourth_part;
+
+  SECTION( "matches the analytic log-normal SD log-ratio" ) {
+    REQUIRE( got == Approx(expected) );
+  }
+
+  SECTION( "differs from the natural-scale parameterization" ) {
+    // Natural-scale uses (theta - mu) residuals and keeps the pnorm truncation
+    // terms, so the ratio must differ -- confirming the lognormal branch is taken.
+    pat.lognormal_pulses = false;
+    double got_natural = sampler.posterior_function(&pat, prop, &pat);
     REQUIRE( got != Approx(got_natural) );
   }
 }

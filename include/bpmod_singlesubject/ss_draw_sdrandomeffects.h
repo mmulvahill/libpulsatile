@@ -55,20 +55,24 @@ class SS_DrawSDRandomEffects :
 
       };
 
+    // Exposed publicly so the closed-form log-ratio can be unit tested; the MH
+    // base dispatches through its own private virtual, so this does not change
+    // normal sampling behavior.
+    double posterior_function(Patient *patient, double proposal, Patient *notused);
+
   private:
 
     double PatientEstimates::*est_mean_;
     double PatientEstimates::*est_sd_;
     double PulseEstimates::*tvarscale_;
     double PulseEstimates::*randomeffect_; //pulse specific mass or width
-    
+
     double PatientPriors::*sd_param_; //pulse specific mass or width
 
     std::string parameter_name;
     std::string get_parameter_name() { return parameter_name; };
 
     bool parameter_support(double val, Patient *patient);
-    double posterior_function(Patient *patient, double proposal, Patient *notused);
 
 };
 
@@ -118,16 +122,27 @@ inline double SS_DrawSDRandomEffects::posterior_function(Patient *patient,
   // Calculate pulse-specific portion of acceptance ratio
   for (auto &pulse : patient->pulses) {
 
-    // Normalizing constants for ratio of log likelihoods. They are truncated t-distributions
-    stdx_old   = patient_mean / ( patient_sd  / sqrt(pulse.*tvarscale_) );
-    stdx_new   = patient_mean / ( proposal / sqrt(pulse.*tvarscale_) );
-    new_int   += Rf_pnorm5(stdx_new, 0, 1, 1.0, 1.0);
-    old_int   += Rf_pnorm5(stdx_old, 0, 1, 1.0, 1.0);
+    if (patient->lognormal_pulses) {
+      // Log-normal parameterization (papers): log(theta) ~ N(mu, sigma^2/kappa).
+      // Residuals are on the log scale and there is no truncation at 0, so the
+      // truncated-normal normalizing constants (old_int/new_int) are dropped.
+      double logre = log(pulse.*randomeffect_);
+      third_part += pulse.*tvarscale_ *
+                    (logre - patient_mean) *
+                    (logre - patient_mean);
+    } else {
+      // Natural-scale truncated-normal parameterization (research option).
+      // Normalizing constants for ratio of log likelihoods. They are truncated t-distributions
+      stdx_old   = patient_mean / ( patient_sd  / sqrt(pulse.*tvarscale_) );
+      stdx_new   = patient_mean / ( proposal / sqrt(pulse.*tvarscale_) );
+      new_int   += Rf_pnorm5(stdx_new, 0, 1, 1.0, 1.0);
+      old_int   += Rf_pnorm5(stdx_old, 0, 1, 1.0, 1.0);
 
-    // 3rd part of acceptance ratio: This is for ratio of log likelihoods, which are truncated t-distribuitons
-    third_part += pulse.*tvarscale_ * 
-                  (pulse.*randomeffect_ - patient_mean) * 
-                  (pulse.*randomeffect_ - patient_mean);
+      // 3rd part of acceptance ratio: This is for ratio of log likelihoods, which are truncated t-distribuitons
+      third_part += pulse.*tvarscale_ *
+                    (pulse.*randomeffect_ - patient_mean) *
+                    (pulse.*randomeffect_ - patient_mean);
+    }
 
   }
 
