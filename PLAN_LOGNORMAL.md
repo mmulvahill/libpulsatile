@@ -102,12 +102,17 @@ signature changes (this work does not). Branch pushes: `git push --force-with-le
 (history diverged from merged PR #18 by design).
 
 ## Orchestration
-The lead session handles planning, sequencing, and review, and delegates the C++
-and R implementation + test-execution steps to **Opus 4.8 subagents** (Agent tool
-with `model: opus`). This keeps a capable executor on the mechanical
-implementation while the lead holds the design context. Each subagent task should
-be self-contained (specific files, the exact math above, and the compile/test bar)
-and report back its diff + test results for review before committing.
+**Standing default for this project:** all C++/R implementation, analysis, and
+test-execution is carried out by **Opus 4.8 subagents** (Agent tool,
+`model: opus`). The lead session (Claude Fable 5) owns planning, sequencing, task
+decomposition, and review of returned work -- it does not do the implementation
+itself. Pinning the domain/statistics work to a single fixed executor also keeps
+a model change from landing partway through a long implementation step.
+
+Each subagent gets a self-contained slice: the specific files, the exact MH math
+from the task above, and the compile/test bar. It returns its diff and test
+results; the lead reviews and commits. Keep slices small enough to review in one
+pass.
 
 ---
 
@@ -128,11 +133,12 @@ and report back its diff + test results for review before committing.
 > testing each step, to a bar of `devtools::check()` 0 errors / 0 warnings, then
 > open a new PR off `master`.
 >
-> **Orchestration.** Do the planning/sequencing/review yourself; delegate the C++
-> and R implementation + test runs to Opus 4.8 subagents (Agent tool,
-> `model: opus`), each given a self-contained slice (files + math from
-> `PLAN_LOGNORMAL.md` + the compile/test bar) reporting its diff and test results
-> back for review before commit.
+> **Orchestration (standing default).** Do the planning/sequencing/review
+> yourself; run *all* the C++/R implementation, analysis, and test execution
+> through Opus 4.8 subagents (Agent tool, `model: opus`) rather than doing it in
+> the lead session. Give each subagent a self-contained slice (files + math from
+> `PLAN_LOGNORMAL.md` + the compile/test bar); it reports its diff and test
+> results back for your review before you commit.
 >
 > **Reference PDFs** (publisher hosts egress-blocked; read locally): thesis and
 > Horton 2017 in `/root/.claude/uploads/6fb472a5-.../`. Get the log-scale default
