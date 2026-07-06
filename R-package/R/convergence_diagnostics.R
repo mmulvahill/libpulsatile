@@ -421,11 +421,160 @@ convergence_report <- function(fit) {
     cat("[WARNING] Poor mixing: High autocorrelation\n")
     cat("  Consider thinning more or adjusting proposal variances\n")
   }
-  
+
+  # Identifiability / space-filling check for bounded-prior variance components.
+  # A parameter whose posterior fills its prior can pass ESS/ACF checks yet be
+  # essentially uninformed by the data.
+  ident <- tryCatch(identifiability_check(fit), error = function(e) NULL)
+  if (!is.null(ident)) {
+    flagged <- ident[ident$weak_identifiability %in% TRUE, , drop = FALSE]
+    if (nrow(flagged) > 0) {
+      cat("[WARNING] Weakly identified: posterior fills most of the prior range\n")
+      for (i in seq_len(nrow(flagged))) {
+        cat(sprintf("  %-16s posterior 95%% width covers %.0f%% of its prior\n",
+                    flagged$parameter[i], 100 * flagged$prior_coverage[i]))
+      }
+      cat("  These parameters are likely poorly informed by the data;\n")
+      cat("  their posteriors approach the prior. Interpret with caution.\n")
+    }
+  }
+
   cat("\n")
   cat("=" %R% 70, "\n\n")
-  
+
   invisible(diag)
+}
+
+
+#' Flag Weakly Identified (Space-Filling) Parameters
+#'
+#' Detects parameters whose posterior spans most of their (bounded) prior
+#' support -- the signature of a parameter that the data barely informs, so its
+#' posterior simply reproduces the prior. This is a common, easily-missed
+#' failure mode for variance components with little information in the data
+#' (e.g. the pulse-to-pulse SD of pulse width in the population model), which
+#' can wander across the whole prior range while every standard convergence
+#' statistic (ESS, R-hat) still looks acceptable.
+#'
+#' For each parameter the check compares the width of the central 95\% posterior
+#' interval to the width of the prior support. A large ratio (\code{coverage})
+#' means the posterior fills the prior and the parameter is likely weakly
+#' identified. Only parameters with a finite, bounded prior range contribute a
+#' non-\code{NA} verdict; for a \code{population_fit} the uniform-prior variance
+#' components (the \code{*_sd} columns) are mapped to their prior bounds
+#' automatically.
+#'
+#' @param fit A \code{population_fit} object, or a data frame / matrix of
+#'   posterior draws (one column per parameter).
+#' @param prior_bounds Optional named list giving the prior support for
+#'   parameters as length-2 numeric vectors \code{c(lower, upper)}. Overrides /
+#'   supplements the bounds derived automatically from a \code{population_fit}.
+#' @param coverage_threshold Fraction of the prior range above which a parameter
+#'   is flagged as weakly identified (default 0.5).
+#'
+#' @return A data frame with one row per parameter and columns:
+#'   \item{parameter}{Parameter name}
+#'   \item{post_mean}{Posterior mean}
+#'   \item{post_sd}{Posterior standard deviation}
+#'   \item{q2.5, q97.5}{Central 95\% posterior interval endpoints}
+#'   \item{prior_range}{Width of the prior support (\code{NA} if unknown/unbounded)}
+#'   \item{prior_coverage}{Posterior 95\% width divided by prior range}
+#'   \item{weak_identifiability}{Logical; \code{TRUE} if \code{prior_coverage}
+#'     exceeds \code{coverage_threshold}, \code{NA} if the prior range is unknown}
+#'
+#' @details
+#' A high \code{prior_coverage} is a symptom, not a proof: strongly informative
+#' data can still yield a wide posterior if the prior is tight. Read it alongside
+#' the trace plot. A parameter that both fills its prior and drifts/space-fills
+#' in the trace is very likely unidentified by the data at hand.
+#'
+#' @importFrom stats quantile sd
+#' @export
+identifiability_check <- function(fit, prior_bounds = NULL,
+                                  coverage_threshold = 0.5) {
+
+  # Resolve the chain and, for a population_fit, the uniform-prior bounds.
+  if (inherits(fit, "population_fit")) {
+    chain <- fit$population_chain
+    auto_bounds <- .population_prior_bounds(fit)
+    # Explicit prior_bounds take precedence over the auto-derived ones.
+    user_bounds <- if (is.null(prior_bounds)) list() else prior_bounds
+    prior_bounds <- utils::modifyList(auto_bounds, user_bounds)
+  } else if (is.data.frame(fit) || is.matrix(fit)) {
+    chain <- as.data.frame(fit)
+    if (is.null(prior_bounds)) prior_bounds <- list()
+  } else {
+    stop("fit must be a population_fit or a data.frame/matrix of posterior draws")
+  }
+
+  if ("iteration" %in% names(chain)) {
+    chain <- chain[, names(chain) != "iteration", drop = FALSE]
+  }
+
+  params <- names(chain)
+  results <- lapply(params, function(param) {
+
+    x <- as.numeric(chain[[param]])
+    x <- x[is.finite(x)]
+    qs <- stats::quantile(x, c(0.025, 0.975), names = FALSE)
+    post_range <- qs[2] - qs[1]
+
+    pb <- prior_bounds[[param]]
+    if (!is.null(pb) && length(pb) == 2 &&
+        all(is.finite(pb)) && (pb[2] - pb[1]) > 0) {
+      prior_range <- pb[2] - pb[1]
+      coverage    <- post_range / prior_range
+      weak        <- coverage > coverage_threshold
+    } else {
+      prior_range <- NA_real_
+      coverage    <- NA_real_
+      weak        <- NA
+    }
+
+    data.frame(
+      parameter            = param,
+      post_mean            = mean(x),
+      post_sd              = stats::sd(x),
+      q2.5                 = qs[1],
+      q97.5                = qs[2],
+      prior_range          = prior_range,
+      prior_coverage       = coverage,
+      weak_identifiability = weak,
+      stringsAsFactors     = FALSE
+    )
+  })
+
+  out <- do.call(rbind, results)
+  rownames(out) <- NULL
+  out
+}
+
+
+# Map a population_fit's uniform-prior variance components to their prior
+# support c(0, max). Returns an empty list when the spec is unavailable.
+.population_prior_bounds <- function(fit) {
+
+  pri <- fit$spec$population_priors
+  if (is.null(pri)) return(list())
+
+  # chain column -> population_priors upper-bound name (all are Uniform(0, max))
+  bound_names <- c(
+    mass_mean_sd  = "mass_mean_sd_max",
+    width_mean_sd = "width_mean_sd_max",
+    baseline_sd   = "baseline_sd_max",
+    halflife_sd   = "halflife_sd_max",
+    mass_sd       = "mass_sd_max",
+    width_sd      = "width_sd_max"
+  )
+
+  bounds <- list()
+  for (param in names(bound_names)) {
+    mx <- pri[[bound_names[[param]]]]
+    if (!is.null(mx) && is.finite(mx) && mx > 0) {
+      bounds[[param]] <- c(0, mx)
+    }
+  }
+  bounds
 }
 
 
