@@ -102,17 +102,25 @@ signature changes (this work does not). Branch pushes: `git push --force-with-le
 (history diverged from merged PR #18 by design).
 
 ## Orchestration
-**Standing default for this project:** all C++/R implementation, analysis, and
-test-execution is carried out by **Opus 4.8 subagents** (Agent tool,
-`model: opus`). The lead session (Claude Fable 5) owns planning, sequencing, task
-decomposition, and review of returned work -- it does not do the implementation
-itself. Pinning the domain/statistics work to a single fixed executor also keeps
-a model change from landing partway through a long implementation step.
+**Standing default for this project.** All domain-substantive work -- the C++/R
+implementation, the statistical analysis, and the correctness review of the
+MCMC/model math -- is done by **Opus 4.8 subagents** (Agent tool, `model: opus`).
+The lead session (Claude Fable 5) does orchestration only: sequencing and
+decomposing tasks, dispatching to Opus subagents, integrating returned
+diffs/test results, committing, and communicating with the user. The lead does
+not implement, analyze, or review the model math itself.
+
+**Rationale: reliable, consistent, predictable routing.** The platform may
+reassign work between models for content-based reasons; keeping every substantive
+step in Opus subagents makes the model assignment deterministic and makes a
+mid-task reassignment of the lead turn harmless (nothing substantive rides on
+which model holds an orchestration turn). This serves both work quality (no
+surprise model swaps mid-implementation) and the intent of the platform's routing.
 
 Each subagent gets a self-contained slice: the specific files, the exact MH math
-from the task above, and the compile/test bar. It returns its diff and test
-results; the lead reviews and commits. Keep slices small enough to review in one
-pass.
+from the task above, and the compile/test bar. It confirms correctness and green
+tests, and returns its diff + results; the lead integrates and commits. Keep
+slices small enough to hand off and integrate cleanly.
 
 ---
 
@@ -133,12 +141,15 @@ pass.
 > testing each step, to a bar of `devtools::check()` 0 errors / 0 warnings, then
 > open a new PR off `master`.
 >
-> **Orchestration (standing default).** Do the planning/sequencing/review
-> yourself; run *all* the C++/R implementation, analysis, and test execution
-> through Opus 4.8 subagents (Agent tool, `model: opus`) rather than doing it in
-> the lead session. Give each subagent a self-contained slice (files + math from
-> `PLAN_LOGNORMAL.md` + the compile/test bar); it reports its diff and test
-> results back for your review before you commit.
+> **Orchestration (standing default).** Run *all* domain-substantive work -- the
+> C++/R implementation, the analysis, and the correctness review of the model
+> math -- through Opus 4.8 subagents (Agent tool, `model: opus`). Keep the lead
+> session to orchestration only: sequence and decompose tasks, dispatch to Opus,
+> integrate returned diffs/test results, and commit. Do not implement, analyze,
+> or review the model math in the lead. Give each subagent a self-contained slice
+> (files + math from `PLAN_LOGNORMAL.md` + the compile/test bar); it confirms
+> correctness and green tests before the lead integrates and commits. This keeps
+> routing predictable and a mid-task model reassignment harmless.
 >
 > **Reference PDFs** (publisher hosts egress-blocked; read locally): thesis and
 > Horton 2017 in `/root/.claude/uploads/6fb472a5-.../`. Get the log-scale default
