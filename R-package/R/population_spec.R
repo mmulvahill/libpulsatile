@@ -230,7 +230,12 @@ population_spec <- function(
     pv_mass_mean_sd = 0.1,       pv_width_mean_sd = 0.1,
     pv_mass_sd = 0.1,            pv_width_sd = 0.1,
     pv_subject_mean_pulse_mass = 0.5, pv_subject_mean_pulse_width = 0.5,
-    pv_indiv_pulse_mass = 0.25,  pv_indiv_pulse_width = 0.25)
+    # Individual-pulse proposals are natural-scale random walks on the log-normal
+    # pulse value, so they are scaled to the natural magnitude exp(mean)
+    # (mass ~ exp(1) ~ 2.7 -> 0.5; width ~ exp(3) ~ 20 -> 9), NOT to log-scale
+    # sizes -- otherwise pulse widths barely move and the pulse-to-pulse width SD
+    # mixes very slowly (see benchmarks/sim_study_lognormal_report.md).
+    pv_indiv_pulse_mass = 0.5,   pv_indiv_pulse_width = 9)
   tn_defaults <- list(
     prior_mass_mean_mean = 3.5,  prior_mass_mean_var = 100,
     prior_width_mean_mean = 42,  prior_width_mean_var = 1000,

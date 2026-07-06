@@ -51,9 +51,12 @@ test_that("joint_spec() defaults to lognormal / uniform and converts SD starts",
   # Uniform(0, 10) support -- the natural-scale 35 would be outside it.
   expect_equal(spec$driver_starting_values$width_sd, 0.7)
   expect_equal(spec$response_starting_values$width_sd, 0.7)
-  # Log-scale proposal variances.
+  # Fixed-effect mean proposal is log-scale (small); the individual-pulse
+  # proposal is a natural-scale random walk on the log-normal pulse value, so it
+  # is scaled to exp(width_mean) ~ exp(3.5) rather than shrunk to log size
+  # (see benchmarks/sim_study_lognormal_report.md).
   expect_true(spec$proposal_variances$driver_width_mean <= 1)
-  expect_true(spec$proposal_variances$driver_pulse_width <= 1)
+  expect_equal(spec$proposal_variances$driver_pulse_width, 9)
   expect_error(joint_spec(pulse_distribution = "banana"), "should be one of")
 })
 

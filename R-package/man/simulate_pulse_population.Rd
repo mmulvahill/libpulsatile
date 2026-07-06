@@ -20,6 +20,7 @@ simulate_pulse_population(
   width_mean_sd = 0,
   baseline_sd = 0,
   halflife_sd = 0,
+  pulse_distribution = c("truncnorm", "lognormal"),
   seed = NULL
 )
 }
@@ -46,6 +47,13 @@ mean width (0 = identical subjects).}
 
 \item{baseline_sd, halflife_sd}{Subject-to-subject SD of baseline and
 half-life (0 = identical subjects).}
+
+\item{pulse_distribution}{Character, one of \code{"truncnorm"} (default) or
+\code{"lognormal"}, passed to \code{\link{simulate_pulse}} for each subject
+to choose the per-pulse mass/width data-generating distribution. Under
+\code{"lognormal"} the \code{mass_sd}/\code{width_sd} (and the subject-mean
+\code{mass_mean}/\code{width_mean}) are LOG-scale parameters, matching the
+papers-default population fit.}
 
 \item{seed}{Optional RNG seed for reproducibility.}
 }

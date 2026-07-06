@@ -56,11 +56,17 @@ test_that("pulse_spec() lognormal defaults are paper log-scale values", {
   expect_equal(spec$starting_values$width_mean, 3.0)
   expect_equal(spec$starting_values$mass_sd, 0.5)
   expect_equal(spec$starting_values$width_sd, 0.7)
-  # Log-scale proposal variances -- the natural-scale pv (3700 / 15000 / 4000)
-  # would be catastrophic on a log-width ~3.5 scale, so they shrink to O(0.01-1).
+  # Fixed-effect mean / SD proposals act on LOG-scale parameters, so the
+  # natural-scale pv (3700 / 4000) shrink to O(0.01-1).
   expect_true(spec$proposal_variances$width_mean  <= 1)
-  expect_true(spec$proposal_variances$pulse_width <= 1)
   expect_true(spec$proposal_variances$width_sd    <= 1)
+  # The individual-pulse proposal, however, is a random walk on the NATURAL-scale
+  # pulse value (log-normal draw), so it must be scaled to the natural width
+  # magnitude exp(width_mean) ~ 20 -- NOT shrunk to log-scale sizes. A sim study
+  # (benchmarks/sim_study_lognormal_report.md) confirmed shrinking it stalls the
+  # pulse-to-pulse width-SD mixing; the paper default is 9 here.
+  expect_equal(spec$proposal_variances$pulse_width, 9)
+  expect_equal(spec$proposal_variances$pulse_mass,  0.5)
 })
 
 test_that("pulse_spec() rejects a starting SD outside the Uniform prior support", {

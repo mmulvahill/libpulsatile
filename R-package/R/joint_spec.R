@@ -292,7 +292,12 @@ joint_spec <- function(
     sd_mass = 10,     sd_width = 10,
     sv_mass_mean = 1.0, sv_width_mean = 3.0, sv_mass_sd = 0.5, sv_width_sd = 0.7,
     pv_mean_pulse_mass = 0.5,  pv_mean_pulse_width = 0.5,
-    pv_indiv_pulse_mass = 0.25, pv_indiv_pulse_width = 0.25,
+    # Individual-pulse proposals are natural-scale random walks on the log-normal
+    # pulse value, so they scale to the natural magnitude exp(mean) (width ~
+    # exp(3.5) ~ 33 -> 9, mass -> 0.5), NOT log-scale sizes -- otherwise pulse
+    # widths barely move and the width SD mixes slowly (see
+    # benchmarks/sim_study_lognormal_report.md).
+    pv_indiv_pulse_mass = 0.5,  pv_indiv_pulse_width = 9,
     pv_sd_pulse_mass = 0.1,     pv_sd_pulse_width = 0.1)
   tn_defaults <- list(
     mass_mean = 3.5,  mass_var = 100, width_mean = 42,   width_var = 1000,

@@ -20,7 +20,8 @@ simulate_pulse(
   baseline_mean = NULL,
   baseline_var = NULL,
   constant_halflife = 45,
-  constant_baseline = 2.6
+  constant_baseline = 2.6,
+  pulse_distribution = c("truncnorm", "lognormal")
 )
 }
 \arguments{
@@ -60,6 +61,20 @@ not used if this is non-null.}
 \item{constant_baseline}{To use a constant (specified) baseline, set this to
 a constant [0,inf). Mean and variance of baseline are not used if this is
 non-null.}
+
+\item{pulse_distribution}{Character, one of \code{"truncnorm"} (default) or
+\code{"lognormal"}, selecting the data-generating distribution for the
+per-pulse mass and width random effects. \code{"truncnorm"} keeps the legacy
+natural-scale truncated Student-t mixture (a Gaussian/gamma scale mixture
+with rejection below the physical floors), in which \code{mass_mean},
+\code{mass_sd}, \code{width_mean} and \code{width_sd} are natural-scale
+parameters. \code{"lognormal"} draws \code{mass = exp(rnorm(1, mass_mean,
+mass_sd))} and \code{width = exp(rnorm(1, width_mean, width_sd))} (Gaussian
+on the log scale, no t-scale mixture and no truncation), so \code{mass_mean},
+\code{mass_sd}, \code{width_mean} and \code{width_sd} are interpreted as
+LOG-scale parameters. Use \code{"lognormal"} to generate data consistent
+with the papers-default (\code{pulse_distribution = "lognormal"}) fit
+produced by \code{\link{pulse_spec}} / \code{\link{population_spec}}.}
 }
 \value{
 A object of class \code{pulse_sim} containing time-series dataset

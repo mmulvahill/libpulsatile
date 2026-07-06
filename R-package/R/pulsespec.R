@@ -157,9 +157,15 @@ pulse_spec <-
     # Conditional numeric defaults. Any argument left NULL is resolved from the
     # parameterization-specific default table; a user-supplied value overrides.
     # "truncnorm" reproduces the exact pre-change (natural-scale) spec object;
-    # "lognormal" gives the paper log-scale defaults (thesis-matched), including
-    # LOG-scale proposal variances (the natural-scale pv like 3700/15000/4000 are
-    # catastrophic on a log-width ~3.5 scale).
+    # "lognormal" gives the paper log-scale defaults (thesis-matched). The
+    # fixed-effect mean/SD proposal variances (pv_mean_*, pv_sd_*) are LOG-scale,
+    # since those parameters live on the log scale. The INDIVIDUAL-pulse proposals
+    # (pv_indiv_pulse_mass/width), however, are random walks on the NATURAL-scale
+    # pulse value (log-normal draw), so they must be scaled to the natural pulse
+    # magnitude exp(mean): mass ~ exp(1.2) ~ 3.3 -> pv 0.5; width ~ exp(3) ~ 20
+    # -> pv 9. Shrinking these to log-scale sizes (~0.25) leaves individual widths
+    # barely moving, so the pulse-to-pulse width SD mixes very slowly (a sim-study
+    # confirmed width_sd ESS jumps ~3.6x, width_mean ESS ~5.7x, going 0.25 -> 9).
     ln_defaults <- list(
       prior_mass_mean  = 1.2,  prior_mass_var  = 25,
       prior_width_mean = 3.5,  prior_width_var = 25,
@@ -167,7 +173,7 @@ pulse_spec <-
       sv_mass_mean     = 1.0,  sv_width_mean   = 3.0,
       sv_mass_sd       = 0.5,  sv_width_sd     = 0.7,
       pv_mean_pulse_mass  = 0.5,  pv_mean_pulse_width  = 0.5,
-      pv_indiv_pulse_mass = 0.25, pv_indiv_pulse_width = 0.25,
+      pv_indiv_pulse_mass = 0.5,  pv_indiv_pulse_width = 9,
       pv_sd_pulse_mass    = 0.1,  pv_sd_pulse_width    = 0.1)
     tn_defaults <- list(
       prior_mass_mean  = 3.5,  prior_mass_var  = 100,
