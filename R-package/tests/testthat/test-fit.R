@@ -22,4 +22,11 @@ test_that("student_t_pulses = FALSE holds every pulse t-scale (kappa) at 1", {
   expect_true("eta_width" %in% names(fit$pulse_chain))
   expect_true(all(fit$pulse_chain$eta_mass == 1))
   expect_true(all(fit$pulse_chain$eta_width == 1))
+
+  # width_sd is the PR's primary motivation: its draw was commented out and the
+  # parameter sat frozen. It is sampled independently of the t-scale toggle, so
+  # assert here that both pulse-to-pulse SDs actually move -- a frozen chain
+  # (re-introduced `// draw_sd_widths...`) would be constant, giving sd == 0.
+  expect_true(stats::sd(fit$patient_chain$width_sd) > 0)
+  expect_true(stats::sd(fit$patient_chain$mass_sd) > 0)
 })
