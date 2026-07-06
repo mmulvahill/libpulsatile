@@ -123,6 +123,44 @@ test_that("joint_spec() validates input parameters", {
 })
 
 
+test_that("joint_spec() carries user's uniform SD bound into the priors list", {
+  # The C++ joint model reads mass_sd_max/width_sd_max from the priors lists; the
+  # spec must map the resolved prior_driver_sd_*/prior_response_sd_* onto them so
+  # a non-default uniform bound actually reaches the sampler.
+  spec <- joint_spec(sd_prior = "uniform",
+                     prior_driver_sd_width = 7,
+                     prior_response_sd_mass = 4)
+  expect_equal(spec$driver_priors$width_sd_max, 7)
+  expect_equal(spec$driver_priors$width_sd_param, 7)
+  expect_equal(spec$response_priors$mass_sd_max, 4)
+  # Untouched bounds keep the lognormal default (10).
+  expect_equal(spec$driver_priors$mass_sd_max, 10)
+  expect_equal(spec$response_priors$width_sd_max, 10)
+})
+
+
+test_that("joint_spec() rejects a starting SD outside the Uniform prior support", {
+  # Under sd_prior = 'uniform', each starting SD must sit strictly inside its
+  # Uniform(0, *_sd_max) support (else the chain starts outside its own prior).
+  expect_error(
+    joint_spec(sd_prior = "uniform", sv_driver_width_sd = 12,
+               prior_driver_sd_width = 10),
+    "sv_driver_width_sd = 12 is outside the Uniform\\(0, 10\\)"
+  )
+  expect_error(
+    joint_spec(sd_prior = "uniform", sv_response_mass_sd = 15,
+               prior_response_sd_mass = 10),
+    "sv_response_mass_sd = 15 is outside the Uniform\\(0, 10\\)"
+  )
+  # In-support starting values pass (default lognormal/uniform spec is valid).
+  expect_s3_class(
+    joint_spec(sd_prior = "uniform", sv_driver_width_sd = 5,
+               prior_driver_sd_width = 10),
+    "joint_spec"
+  )
+})
+
+
 test_that("joint_spec() carries student_t_pulses into both hormones", {
   # Default is now Gaussian (student_t_pulses = FALSE).
   spec <- joint_spec()

@@ -8,12 +8,12 @@ simulate_pulse_population(
   n_subjects = 5,
   num_obs = 144,
   interval = 10,
-  mass_mean = 3.5,
-  width_mean = 35,
+  mass_mean = NULL,
+  width_mean = NULL,
   baseline = 2.6,
   halflife = 45,
-  mass_sd = 1,
-  width_sd = 5,
+  mass_sd = NULL,
+  width_sd = NULL,
   ipi_mean = 12,
   ipi_var = 40,
   mass_mean_sd = 0,
@@ -32,13 +32,18 @@ simulate_pulse_population(
 
 \item{interval}{Time in minutes between observations.}
 
-\item{mass_mean, width_mean}{Population mean pulse mass and width.}
+\item{mass_mean, width_mean}{Population mean pulse mass and width. If
+\code{NULL} (default) they resolve to natural-scale \code{3.5}/\code{35}
+under \code{pulse_distribution = "truncnorm"} or LOG-scale
+\code{1.2}/\code{3.0} under \code{"lognormal"}.}
 
 \item{baseline, halflife}{Population mean baseline and half-life. When
 \code{halflife_sd > 0}, \code{halflife} must exceed 8 (the model's minimum
 half-life), otherwise the subject-level rejection sampler cannot converge.}
 
-\item{mass_sd, width_sd}{Pulse-to-pulse SD of mass and width (within subject).}
+\item{mass_sd, width_sd}{Pulse-to-pulse SD of mass and width (within subject).
+If \code{NULL} (default) they resolve to \code{1.0}/\code{5} (truncnorm) or
+LOG-scale \code{0.5}/\code{0.7} (lognormal).}
 
 \item{ipi_mean, ipi_var}{Inter-pulse interval mean and variance.}
 

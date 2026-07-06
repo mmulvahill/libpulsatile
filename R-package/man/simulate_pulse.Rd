@@ -11,10 +11,10 @@ simulate_pulse(
   ipi_mean = 12,
   ipi_var = 40,
   ipi_min = 4,
-  mass_mean = 3.5,
-  mass_sd = 1.6,
-  width_mean = 35,
-  width_sd = 5,
+  mass_mean = NULL,
+  mass_sd = NULL,
+  width_mean = NULL,
+  width_sd = NULL,
   halflife_mean = NULL,
   halflife_var = NULL,
   baseline_mean = NULL,
@@ -38,13 +38,19 @@ window equals \code{num_obs} times \code{interval}.}
 
 \item{ipi_min}{Minimum number of units between pulses}
 
-\item{mass_mean}{Mean pulse mass}
+\item{mass_mean}{Mean pulse mass. If \code{NULL} (default) it resolves to the
+parameterization-appropriate default: natural-scale \code{3.5} under
+\code{pulse_distribution = "truncnorm"} or LOG-scale \code{1.2} under
+\code{"lognormal"}.}
 
-\item{mass_sd}{Standard deviation of pulse mass}
+\item{mass_sd}{Standard deviation of pulse mass. If \code{NULL} (default),
+resolves to \code{1.6} (truncnorm) or LOG-scale \code{0.5} (lognormal).}
 
-\item{width_mean}{Mean pulse width (in minutes)}
+\item{width_mean}{Mean pulse width. If \code{NULL} (default), resolves to
+natural-scale \code{35} (truncnorm) or LOG-scale \code{3.0} (lognormal).}
 
-\item{width_sd}{Standard deviation of pulse width (in minutes)}
+\item{width_sd}{Standard deviation of pulse width. If \code{NULL} (default),
+resolves to \code{5} (truncnorm) or LOG-scale \code{0.7} (lognormal).}
 
 \item{halflife_mean}{Mean of half-life (in minutes)}
 

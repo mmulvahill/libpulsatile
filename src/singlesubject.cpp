@@ -37,8 +37,11 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
                           double univariate_pv_target_ratio)
 {
 
-  // Sync R's .Random.seed into the C-side RNG for the whole fit (restored on
-  // return). Required for set.seed() reproducibility; mirrors jointsinglesubject.
+  // RNGScope for the standalone RInside build (bin/tests / main), which calls
+  // this function directly with no Rcpp .Call wrapper to open one. On the R
+  // package path RcppExports.cpp already opens an outer RNGScope, so this inner
+  // one is a reference-counted no-op there; it is kept solely for the standalone
+  // build's set.seed() reproducibility.
   Rcpp::RNGScope rng_scope;
 
   // every nth iteration for printing verbose screen output

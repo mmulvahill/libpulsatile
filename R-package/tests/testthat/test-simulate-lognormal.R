@@ -28,6 +28,27 @@ test_that("pulse_distribution = 'lognormal' draws log-scale mass/width", {
   expect_true(all(s$parameters$mass_kappa  == 1))
 })
 
+test_that("simulate_pulse(pulse_distribution='lognormal') defaults give sane widths", {
+  # Regression: with natural-scale defaults the lognormal branch drew
+  # width = exp(rnorm(35, 5)) ~ 1e15. Default args must now resolve to LOG-scale
+  # (width_mean = 3.0, width_sd = 0.7), so widths are physically reasonable and
+  # log(width) ~ N(3.0, 0.7).
+  set.seed(3)
+  s <- simulate_pulse(num_obs = 600, interval = 10, ipi_mean = 12,
+                      pulse_distribution = "lognormal")
+  expect_gt(nrow(s$parameters), 20)
+  expect_true(all(is.finite(s$parameters$width)))
+  expect_true(all(is.finite(s$parameters$mass)))
+  # Median width near exp(3.0) ~ 20, and nowhere near the 1e15 blow-up.
+  expect_lt(stats::median(s$parameters$width), 200)
+  expect_gt(stats::median(s$parameters$width), 2)
+  lw <- log(s$parameters$width)
+  expect_equal(mean(lw), 3.0, tolerance = 0.3)
+  expect_equal(stats::sd(lw), 0.7, tolerance = 0.3)
+  # Mass defaults resolve to log-scale too (mean log-mass ~ 1.2).
+  expect_equal(mean(log(s$parameters$mass)), 1.2, tolerance = 0.3)
+})
+
 test_that("simulate_pulse() default is unchanged (truncnorm)", {
   # Backward compatibility: the default path must reproduce the legacy
   # truncated-Student-t draw byte-for-byte for a fixed seed.

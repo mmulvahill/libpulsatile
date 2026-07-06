@@ -13,11 +13,11 @@ population_spec(
   prior_baseline_mean_mean = 2.6,
   prior_baseline_mean_var = 100,
   prior_halflife_mean_mean = 45,
-  prior_halflife_mean_var = NULL,
+  prior_halflife_mean_var = 100,
   prior_mass_mean_sd_max = NULL,
   prior_width_mean_sd_max = NULL,
-  prior_baseline_sd_max = NULL,
-  prior_halflife_sd_max = NULL,
+  prior_baseline_sd_max = 3,
+  prior_halflife_sd_max = 20,
   prior_mass_sd_max = NULL,
   prior_width_sd_max = NULL,
   prior_error_alpha = 1e-04,
@@ -174,8 +174,10 @@ left unspecified. \code{"truncnorm"} keeps the legacy natural-scale
 truncated-normal random effects and the legacy natural-scale defaults.}
 
 \item{sd_prior}{Character, one of \code{"uniform"} (default) or
-\code{"half_cauchy"}. Selects the prior on the pulse-to-pulse and
-subject-to-subject SDs. Horton uses \code{"uniform"}.}
+\code{"half_cauchy"}. \strong{The population model only implements the
+Uniform SD prior}; \code{"half_cauchy"} is not implemented and, if supplied,
+is ignored with a warning (a Uniform prior is always used). Horton uses
+\code{"uniform"}.}
 
 \item{student_t_pulses}{Logical. If \code{TRUE}, pulse mass and width random
 effects follow a Student-t distribution via a per-pulse t-scale

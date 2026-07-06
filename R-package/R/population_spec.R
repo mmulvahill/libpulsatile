@@ -76,8 +76,10 @@
 #'   left unspecified. \code{"truncnorm"} keeps the legacy natural-scale
 #'   truncated-normal random effects and the legacy natural-scale defaults.
 #' @param sd_prior Character, one of \code{"uniform"} (default) or
-#'   \code{"half_cauchy"}. Selects the prior on the pulse-to-pulse and
-#'   subject-to-subject SDs. Horton uses \code{"uniform"}.
+#'   \code{"half_cauchy"}. \strong{The population model only implements the
+#'   Uniform SD prior}; \code{"half_cauchy"} is not implemented and, if supplied,
+#'   is ignored with a warning (a Uniform prior is always used). Horton uses
+#'   \code{"uniform"}.
 #' @param student_t_pulses Logical. If \code{TRUE}, pulse mass and width random
 #'   effects follow a Student-t distribution via a per-pulse t-scale
 #'   (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE} (default), the
@@ -127,13 +129,16 @@ population_spec <- function(
   prior_baseline_mean_mean = 2.6,
   prior_baseline_mean_var = 100,
   prior_halflife_mean_mean = 45,
-  prior_halflife_mean_var = NULL,
+  # Baseline/half-life priors are axis-INDEPENDENT: they do not switch with
+  # pulse_distribution (only the pulse mass/width priors do). Fixed defaults
+  # matching pulse_spec()/joint_spec().
+  prior_halflife_mean_var = 100,
 
   # Subject-to-subject variation priors (uniform upper bounds)
   prior_mass_mean_sd_max = NULL,
   prior_width_mean_sd_max = NULL,
-  prior_baseline_sd_max = NULL,
-  prior_halflife_sd_max = NULL,
+  prior_baseline_sd_max = 3,
+  prior_halflife_sd_max = 20,
 
   # Pulse-to-pulse variation priors (uniform upper bounds)
   prior_mass_sd_max = NULL,
@@ -207,6 +212,14 @@ population_spec <- function(
     stop("prior_mean_pulse_count must be > 0")
   }
 
+  # The population model's SD draws are Uniform-only (see population.h); the
+  # half-Cauchy prior is not implemented for it. Accept the argument (so existing
+  # calls don't break) but warn that it is ignored and a Uniform prior is used.
+  if (identical(sd_prior, "half_cauchy")) {
+    warning("The population model only supports a Uniform SD prior; ",
+            "sd_prior = \"half_cauchy\" is ignored and a Uniform prior is used.")
+  }
+
   # Parameterization flags carried through the priors list into C++.
   lognormal_pulses <- identical(pulse_distribution, "lognormal")
   uniform_sd_prior <- identical(sd_prior, "uniform")
@@ -219,9 +232,7 @@ population_spec <- function(
   ln_defaults <- list(
     prior_mass_mean_mean = 1.0,  prior_mass_mean_var = 100,
     prior_width_mean_mean = 3.0, prior_width_mean_var = 100,
-    prior_halflife_mean_var = 1000,
     prior_mass_mean_sd_max = 10, prior_width_mean_sd_max = 10,
-    prior_baseline_sd_max = 10,  prior_halflife_sd_max = 10,
     prior_mass_sd_max = 10,      prior_width_sd_max = 10,
     sv_mass_mean = 1.0,          sv_width_mean = 3.0,
     sv_mass_mean_sd = 0.5,       sv_width_mean_sd = 0.5,
@@ -239,9 +250,7 @@ population_spec <- function(
   tn_defaults <- list(
     prior_mass_mean_mean = 3.5,  prior_mass_mean_var = 100,
     prior_width_mean_mean = 42,  prior_width_mean_var = 1000,
-    prior_halflife_mean_var = 100,
     prior_mass_mean_sd_max = 5,  prior_width_mean_sd_max = 30,
-    prior_baseline_sd_max = 3,   prior_halflife_sd_max = 20,
     prior_mass_sd_max = 5,       prior_width_sd_max = 30,
     sv_mass_mean = 3.5,          sv_width_mean = 42,
     sv_mass_mean_sd = 1.0,       sv_width_mean_sd = 10,
@@ -257,11 +266,8 @@ population_spec <- function(
   prior_mass_mean_var     <- resolve(prior_mass_mean_var,     "prior_mass_mean_var")
   prior_width_mean_mean   <- resolve(prior_width_mean_mean,   "prior_width_mean_mean")
   prior_width_mean_var    <- resolve(prior_width_mean_var,    "prior_width_mean_var")
-  prior_halflife_mean_var <- resolve(prior_halflife_mean_var, "prior_halflife_mean_var")
   prior_mass_mean_sd_max  <- resolve(prior_mass_mean_sd_max,  "prior_mass_mean_sd_max")
   prior_width_mean_sd_max <- resolve(prior_width_mean_sd_max, "prior_width_mean_sd_max")
-  prior_baseline_sd_max   <- resolve(prior_baseline_sd_max,   "prior_baseline_sd_max")
-  prior_halflife_sd_max   <- resolve(prior_halflife_sd_max,   "prior_halflife_sd_max")
   prior_mass_sd_max       <- resolve(prior_mass_sd_max,       "prior_mass_sd_max")
   prior_width_sd_max      <- resolve(prior_width_sd_max,      "prior_width_sd_max")
   sv_mass_mean            <- resolve(sv_mass_mean,            "sv_mass_mean")

@@ -104,9 +104,11 @@ test_that("population_spec() defaults to lognormal / uniform and threads flags",
 
 
 test_that("population_spec() truncnorm/half_cauchy reproduces the pre-change spec", {
-  spec <- population_spec(pulse_distribution = "truncnorm",
-                          sd_prior = "half_cauchy",
-                          student_t_pulses = TRUE)
+  # half_cauchy is a no-op for the population model, so it now warns; suppress it
+  # here (the warning itself is checked in a dedicated test below).
+  spec <- suppressWarnings(population_spec(pulse_distribution = "truncnorm",
+                                           sd_prior = "half_cauchy",
+                                           student_t_pulses = TRUE))
   pp <- spec$population_priors
   expect_equal(pp$mass_mean_mean, 3.5)
   expect_equal(pp$mass_mean_var, 100)
@@ -135,6 +137,37 @@ test_that("population_spec() truncnorm/half_cauchy reproduces the pre-change spe
   expect_equal(pv$pop_width_sd, 4000)
   expect_equal(pv$pulse_mass, 1)
   expect_equal(pv$pulse_width, 15000)
+})
+
+
+test_that("population_spec() warns and ignores sd_prior = 'half_cauchy'", {
+  # The population model only supports a Uniform SD prior; half_cauchy is a
+  # no-op, so it must warn but still return a valid (uniform) spec.
+  expect_warning(population_spec(sd_prior = "half_cauchy"),
+                 "only supports a Uniform SD prior")
+  # Still returns a valid spec (arg accepted, not a stop()). The population model
+  # ignores the SD-prior flag and always samples with a Uniform prior.
+  spec <- suppressWarnings(population_spec(sd_prior = "half_cauchy"))
+  expect_s3_class(spec, "population_spec")
+  # The default (uniform) path does not warn.
+  expect_warning(population_spec(sd_prior = "uniform"), NA)
+})
+
+
+test_that("population_spec() baseline/half-life priors are axis-INDEPENDENT", {
+  # prior_halflife_mean_var / prior_baseline_sd_max / prior_halflife_sd_max must
+  # NOT switch with pulse_distribution -- both axes use the fixed 100 / 3 / 20.
+  ln <- population_spec(pulse_distribution = "lognormal")$population_priors
+  tn <- population_spec(pulse_distribution = "truncnorm")$population_priors
+  expect_equal(ln$halflife_mean_var, 100)
+  expect_equal(ln$baseline_sd_max, 3)
+  expect_equal(ln$halflife_sd_max, 20)
+  expect_equal(tn$halflife_mean_var, 100)
+  expect_equal(tn$baseline_sd_max, 3)
+  expect_equal(tn$halflife_sd_max, 20)
+  # Pulse mass/width priors DO still switch with the axis.
+  expect_equal(ln$mass_mean_mean, 1.0)
+  expect_equal(tn$mass_mean_mean, 3.5)
 })
 
 

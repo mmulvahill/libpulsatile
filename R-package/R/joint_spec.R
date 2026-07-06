@@ -342,6 +342,29 @@ joint_spec <- function(
   pv_response_sd_pulse_mass     <- r(pv_response_sd_pulse_mass,     "pv_sd_pulse_mass")
   pv_response_sd_pulse_width    <- r(pv_response_sd_pulse_width,    "pv_sd_pulse_width")
 
+  # Under a Uniform(0, max) SD prior the starting SD must lie strictly inside the
+  # support, or the chain begins outside its own prior (see
+  # ss_draw_sdrandomeffects.h::parameter_support). Checked for the driver and
+  # response, only under the uniform prior (no hard bound under the half-Cauchy).
+  if (uniform_sd_prior) {
+    if (sv_driver_mass_sd >= prior_driver_sd_mass)
+      stop(sprintf(paste("sv_driver_mass_sd = %g is outside the Uniform(0, %g)",
+                         "prior support; lower it or raise prior_driver_sd_mass."),
+                   sv_driver_mass_sd, prior_driver_sd_mass))
+    if (sv_driver_width_sd >= prior_driver_sd_width)
+      stop(sprintf(paste("sv_driver_width_sd = %g is outside the Uniform(0, %g)",
+                         "prior support; lower it or raise prior_driver_sd_width."),
+                   sv_driver_width_sd, prior_driver_sd_width))
+    if (sv_response_mass_sd >= prior_response_sd_mass)
+      stop(sprintf(paste("sv_response_mass_sd = %g is outside the Uniform(0, %g)",
+                         "prior support; lower it or raise prior_response_sd_mass."),
+                   sv_response_mass_sd, prior_response_sd_mass))
+    if (sv_response_width_sd >= prior_response_sd_width)
+      stop(sprintf(paste("sv_response_width_sd = %g is outside the Uniform(0, %g)",
+                         "prior support; lower it or raise prior_response_sd_width."),
+                   sv_response_width_sd, prior_response_sd_width))
+  }
+
   # Validate Strauss prior parameters for driver
   if (prior_driver_location_gamma < 0 || prior_driver_location_gamma > 1) {
     stop("prior_driver_location_gamma must be in [0,1]")
