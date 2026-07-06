@@ -218,6 +218,9 @@ population_spec <- function(
   if (identical(sd_prior, "half_cauchy")) {
     warning("The population model only supports a Uniform SD prior; ",
             "sd_prior = \"half_cauchy\" is ignored and a Uniform prior is used.")
+    # Reset so the uniform_sd_prior flag threaded into C++ matches the actual
+    # (always Uniform) sampler behavior instead of reading FALSE.
+    sd_prior <- "uniform"
   }
 
   # Parameterization flags carried through the priors list into C++.

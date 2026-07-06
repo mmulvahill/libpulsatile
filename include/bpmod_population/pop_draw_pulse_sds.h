@@ -17,7 +17,7 @@
 //     - population.estimates.mass_sd (σ_α)
 //     - population.estimates.width_sd (σ_ω)
 //
-//   Prior: σ ~ Uniform(0, σ_max) (or half-Cauchy in some versions)
+//   Prior: σ ~ Uniform(0, σ_max)
 //   
 //   Likelihood: For all subjects s and pulses k:
 //               α_k,s ~ TruncatedT(μ_α,s, σ_α / sqrt(κ_α,k,s))

@@ -199,7 +199,7 @@ pulse_spec <-
     pv_mean_pulse_mass  <- resolve(pv_mean_pulse_mass,  "pv_mean_pulse_mass")
     pv_mean_pulse_width <- resolve(pv_mean_pulse_width, "pv_mean_pulse_width")
     pv_indiv_pulse_mass <- resolve(pv_indiv_pulse_mass, "pv_indiv_pulse_mass")
-    pv_indiv_pulse_width<- resolve(pv_indiv_pulse_width,"pv_indiv_pulse_width")
+    pv_indiv_pulse_width <- resolve(pv_indiv_pulse_width, "pv_indiv_pulse_width")
     pv_sd_pulse_mass    <- resolve(pv_sd_pulse_mass,    "pv_sd_pulse_mass")
     pv_sd_pulse_width   <- resolve(pv_sd_pulse_width,   "pv_sd_pulse_width")
 

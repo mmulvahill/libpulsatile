@@ -149,6 +149,9 @@ test_that("population_spec() warns and ignores sd_prior = 'half_cauchy'", {
   # ignores the SD-prior flag and always samples with a Uniform prior.
   spec <- suppressWarnings(population_spec(sd_prior = "half_cauchy"))
   expect_s3_class(spec, "population_spec")
+  # sd_prior is reset to "uniform" after warning, so the flag threaded into C++
+  # matches the always-Uniform sampler behavior.
+  expect_true(isTRUE(spec$population_priors$uniform_sd_prior))
   # The default (uniform) path does not warn.
   expect_warning(population_spec(sd_prior = "uniform"), NA)
 })
@@ -191,8 +194,12 @@ test_that("fit_pulse_population() runs with simulated data", {
                    width_mean = 35)
   })
   
-  # Create specification with small iterations for testing
+  # Create specification with small iterations for testing. simulate_pulse()
+  # generates data on the NATURAL scale, so fit the natural-scale (truncnorm)
+  # model -- otherwise the lognormal default would treat prior_width_mean_mean =
+  # 35 as a LOG-scale width mean (natural width ~ e^35), a meaningless config.
   spec <- population_spec(
+    pulse_distribution = "truncnorm",
     prior_mass_mean_mean = 3.5,
     prior_width_mean_mean = 35,
     prior_baseline_mean_mean = 2.6,
@@ -314,13 +321,15 @@ test_that("fit_pulse_population() custom subject starting values work", {
   set.seed(789)
   sim_data <- lapply(1:2, function(i) simulate_pulse(num_obs = 20))
   
-  # Custom starting values
+  # Custom starting values on the NATURAL scale (width_mean = 30/40), so fit the
+  # natural-scale (truncnorm) model to keep the data-generating and model scales
+  # coherent (the lognormal default would treat these as log-scale widths).
   custom_starts <- list(
     list(baseline = 2.5, halflife = 40, mass_mean = 3.0, width_mean = 30),
     list(baseline = 2.8, halflife = 50, mass_mean = 4.0, width_mean = 40)
   )
-  
-  spec <- population_spec()
+
+  spec <- population_spec(pulse_distribution = "truncnorm")
   
   fit <- fit_pulse_population(
     data = sim_data,
