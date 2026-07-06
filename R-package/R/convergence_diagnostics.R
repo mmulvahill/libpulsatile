@@ -516,14 +516,26 @@ identifiability_check <- function(fit, prior_bounds = NULL,
 
     x <- as.numeric(chain[[param]])
     x <- x[is.finite(x)]
-    qs <- stats::quantile(x, c(0.025, 0.975), names = FALSE)
-    post_range <- qs[2] - qs[1]
+
+    # Degrade gracefully on an all-NA / empty column: quantile() would error,
+    # and because the caller wraps this in a single tryCatch, one bad column
+    # would otherwise blank the entire report instead of just its own row.
+    if (length(x) == 0) {
+      qs <- c(NA_real_, NA_real_)
+      post_range <- NA_real_
+    } else {
+      qs <- stats::quantile(x, c(0.025, 0.975), names = FALSE)
+      post_range <- qs[2] - qs[1]
+    }
 
     pb <- prior_bounds[[param]]
-    if (!is.null(pb) && length(pb) == 2 &&
+    if (!is.null(pb) && length(pb) == 2 && is.finite(post_range) &&
         all(is.finite(pb)) && (pb[2] - pb[1]) > 0) {
       prior_range <- pb[2] - pb[1]
       coverage    <- post_range / prior_range
+      # 0.5 is a deliberately conservative trigger: a posterior 95% interval
+      # spanning more than half the prior support is a strong "not learning
+      # from data" signal. Tighten it if it over-flags in practice.
       weak        <- coverage > coverage_threshold
     } else {
       prior_range <- NA_real_

@@ -215,6 +215,15 @@ test_that("fit_pulse_joint() runs with simulated data (quick test)", {
   expect_true(is.numeric(fit$association_chain$nu))
   expect_true(all(fit$association_chain$rho > 0))
   expect_true(all(fit$association_chain$nu > 0))
+
+  # Pulse-to-pulse SDs are now sampled (previously frozen) and surfaced in the
+  # 7-column fixed-effects chains for both hormones.
+  expect_true(all(c("mass_sd", "width_sd") %in% names(fit$driver_chain)))
+  expect_true(all(c("mass_sd", "width_sd") %in% names(fit$response_chain)))
+  # The well-identified mass SD must actually move -- a frozen chain (the bug
+  # this fixes) would be a constant, giving sd == 0.
+  expect_true(stats::sd(fit$driver_chain$mass_sd) > 0)
+  expect_true(stats::sd(fit$response_chain$mass_sd) > 0)
 })
 
 
