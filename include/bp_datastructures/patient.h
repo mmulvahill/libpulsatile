@@ -68,6 +68,19 @@ struct Patient {
   // model specs default this to true (log-normal) to match the papers.
   bool lognormal_pulses = false;
 
+  // Prior on the pulse-to-pulse SD of the random effects (mass_sd / width_sd).
+  // When false (default), the SD has the current half-Cauchy prior with scale
+  // mass_sd_param / width_sd_param, contributing a non-trivial prior ratio to the
+  // SD-of-random-effects MH acceptance ratio. When true (the published Mulvahill-
+  // thesis / Horton parameterization), the SD has a Uniform(0, mass_sd_max) /
+  // Uniform(0, width_sd_max) prior: the density is constant on its support, so the
+  // prior ratio cancels to 0 and support is enforced as 0 < sigma < max. This axis
+  // is orthogonal to lognormal_pulses (it only affects the prior ratio and the
+  // support bound, not the log-vs-natural residual geometry). C++ default is false
+  // (half-Cauchy) to keep existing standalone behavior/tests stable; the R model
+  // specs default this to true (uniform) to match the papers.
+  bool uniform_sd_prior = false;
+
   //
   // For single-subject model
   //

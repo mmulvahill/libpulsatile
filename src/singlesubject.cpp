@@ -123,6 +123,23 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
       lognormal_pulses = (Rf_asReal(inpriors["lognormal_pulses"]) != 0.0);
     }
     pat.lognormal_pulses = lognormal_pulses;
+
+    // Pulse-to-pulse SD prior: Uniform(0, max) (papers' default) or half-Cauchy
+    // (research option). Carried as optional elements of the priors list so the
+    // exported signature is unchanged; older specs without them default to the
+    // half-Cauchy behavior (the C++ default). The Uniform upper bounds
+    // mass_sd_max / width_sd_max are only consulted when uniform_sd_prior is true.
+    bool uniform_sd_prior = false;
+    if (inpriors.containsElementNamed("uniform_sd_prior")) {
+      uniform_sd_prior = (Rf_asReal(inpriors["uniform_sd_prior"]) != 0.0);
+    }
+    pat.uniform_sd_prior = uniform_sd_prior;
+    if (inpriors.containsElementNamed("mass_sd_max")) {
+      pat.priors.mass_sd_max = Rf_asReal(inpriors["mass_sd_max"]);
+    }
+    if (inpriors.containsElementNamed("width_sd_max")) {
+      pat.priors.width_sd_max = Rf_asReal(inpriors["width_sd_max"]);
+    }
 //  }
 
   //double like = patient->likelihood(false);

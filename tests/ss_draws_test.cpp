@@ -337,3 +337,89 @@ TEST_CASE( "sdrandomeffects posterior_function: log-normal SD full conditional",
     REQUIRE( got != Approx(got_natural) );
   }
 }
+
+
+//
+// SS_DrawSDRandomEffects -- Uniform(0, max) SD prior (papers' default)
+//
+// Draws the pulse-to-pulse SD sigma. This axis is ORTHOGONAL to the RE scale
+// (lognormal_pulses): switching the SD prior from half-Cauchy to Uniform(0, max)
+// changes ONLY the prior ratio (the "fourth part") and the support bound; the
+// likelihood/precision/Jacobian terms and the log-vs-natural residual geometry
+// are untouched.
+//
+// Uniform(0, max) has constant density 1/max on its support, and the MH base
+// rejects out-of-support proposals via parameter_support before ever calling
+// posterior_function, so both the current SD and the proposal are guaranteed in
+// (0, max). The prior log-ratio is therefore log(1/max) - log(1/max) = 0, i.e.
+// the uniform acceptance ratio equals the half-Cauchy ratio with its
+// fourth_part = log(c + sigma^2) - log(c + prop^2) term removed.
+//
+TEST_CASE( "sdrandomeffects Uniform SD prior: prior ratio cancels, support bounded",
+           "[draw_][sdrandomeffects][uniform]" ) {
+
+  DataStructuresUtils utils;
+  Patient pat = utils.create_new_test_patient_obj();
+
+  REQUIRE( pat.get_pulsecount() == 1 );  // single pulse -> single-term sum
+  PulseEstimates & pulse = pat.pulses.front();
+
+  const double mu       = 3.5;   // patient mass_mean
+  const double sigma    = 0.8;   // current SD of pulse masses
+  const double prop     = 1.3;   // proposed SD of pulse masses (in (0, max))
+  const double theta    = 5.0;   // pulse mass (natural scale, > 0)
+  const double kappa    = 1.4;   // per-pulse t-scale
+  const double cauchy   = 5.0;   // half-Cauchy scale parameter
+  const double sdmax    = 3.0;   // Uniform(0, max) upper bound
+
+  pat.estimates.mass_mean  = mu;
+  pat.estimates.mass_sd    = sigma;
+  pat.priors.mass_sd_param = cauchy;
+  pat.priors.mass_sd_max   = sdmax;
+  pulse.mass               = theta;
+  pulse.tvarscale_mass     = kappa;
+
+  // for_width = false -> sample the SD of pulse masses
+  SS_DrawSDRandomEffects sampler(1.0, 500, 25000, 0.35, false, false, 5000);
+
+  // The half-Cauchy prior ratio (fourth_part) is what the uniform branch drops.
+  const double fourth_part = std::log(cauchy + sigma * sigma) -
+                             std::log(cauchy + prop * prop);
+
+  // The uniform ratio must equal the half-Cauchy ratio minus fourth_part, in
+  // BOTH RE-scale modes (the two axes are independent).
+  for (bool lognormal : { false, true }) {
+    pat.lognormal_pulses = lognormal;
+
+    pat.uniform_sd_prior = false;
+    const double got_cauchy = sampler.posterior_function(&pat, prop, &pat);
+
+    pat.uniform_sd_prior = true;
+    const double got_uniform = sampler.posterior_function(&pat, prop, &pat);
+
+    // Uniform prior ratio is 0, so it equals the half-Cauchy ratio less fourth_part.
+    REQUIRE( got_uniform == Approx(got_cauchy - fourth_part) );
+
+    // Guard: the two priors give genuinely different ratios (fourth_part != 0).
+    REQUIRE( fourth_part != Approx(0.0) );
+    REQUIRE( got_uniform != Approx(got_cauchy) );
+  }
+
+  SECTION( "parameter_support enforces the open interval (0, max)" ) {
+    pat.uniform_sd_prior = true;
+    // Inside the interval: accepted.
+    REQUIRE( sampler.parameter_support(0.5 * sdmax, &pat) );
+    REQUIRE( sampler.parameter_support(0.999 * sdmax, &pat) );
+    // At/above the upper bound: rejected.
+    REQUIRE_FALSE( sampler.parameter_support(sdmax, &pat) );
+    REQUIRE_FALSE( sampler.parameter_support(sdmax + 1.0, &pat) );
+    // Non-positive: rejected.
+    REQUIRE_FALSE( sampler.parameter_support(0.0, &pat) );
+    REQUIRE_FALSE( sampler.parameter_support(-0.1, &pat) );
+
+    // Half-Cauchy support is positive-only, unbounded above (max not consulted).
+    pat.uniform_sd_prior = false;
+    REQUIRE( sampler.parameter_support(sdmax + 1.0, &pat) );
+    REQUIRE_FALSE( sampler.parameter_support(0.0, &pat) );
+  }
+}

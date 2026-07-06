@@ -43,6 +43,7 @@ class SS_DrawSDRandomEffects :
           tvarscale_      = &PulseEstimates::tvarscale_width;
           randomeffect_   = &PulseEstimates::width;
           sd_param_         = &PatientPriors::width_sd_param;
+          sd_max_           = &PatientPriors::width_sd_max;
           parameter_name = "SD of pulse widths";
         } else {
           est_mean_       = &PatientEstimates::mass_mean;
@@ -50,15 +51,17 @@ class SS_DrawSDRandomEffects :
           tvarscale_      = &PulseEstimates::tvarscale_mass;
           randomeffect_   = &PulseEstimates::mass;
           sd_param_         = &PatientPriors::mass_sd_param;
+          sd_max_           = &PatientPriors::mass_sd_max;
           parameter_name = "SD of pulse masses";
         }
 
       };
 
-    // Exposed publicly so the closed-form log-ratio can be unit tested; the MH
-    // base dispatches through its own private virtual, so this does not change
-    // normal sampling behavior.
+    // Exposed publicly so the closed-form log-ratio and the support bound can be
+    // unit tested; the MH base dispatches through its own private virtuals, so
+    // this does not change normal sampling behavior.
     double posterior_function(Patient *patient, double proposal, Patient *notused);
+    bool parameter_support(double val, Patient *patient);
 
   private:
 
@@ -68,11 +71,10 @@ class SS_DrawSDRandomEffects :
     double PulseEstimates::*randomeffect_; //pulse specific mass or width
 
     double PatientPriors::*sd_param_; //pulse specific mass or width
+    double PatientPriors::*sd_max_;   //Uniform(0,.) upper bound, mass or width
 
     std::string parameter_name;
     std::string get_parameter_name() { return parameter_name; };
-
-    bool parameter_support(double val, Patient *patient);
 
 };
 
@@ -84,13 +86,19 @@ class SS_DrawSDRandomEffects :
 //------------------------------------------------------------
 
 // parameter_support()
-//   Defines whether the proposal value is within the parameter support
-//   For the Cauchy this is just positive
-//    TO DO: can we remove the Patient part of the function?
+//   Defines whether the proposal value is within the parameter support.
+//   Half-Cauchy prior (default): support is positive.
+//   Uniform(0, max) prior: support is the open interval (0, max), where max is
+//   the mass/width upper bound read from the patient's priors. The MH base checks
+//   this before evaluating posterior_function, so any proposal reaching the
+//   acceptance-ratio calculation is guaranteed inside the support -- this is what
+//   lets the Uniform prior ratio cancel to 0 there.
 inline bool SS_DrawSDRandomEffects::parameter_support(double val, Patient *patient) {
 
- // PatientPriors *priors = &patient->priors;
-  //double patient_sd_param = (*priors).*sd_param_;
+  if (patient->uniform_sd_prior) {
+    double max = (patient->priors).*sd_max_;
+    return (val > 0.0 && val < max);
+  }
 
   return (val > 0.0);
 
@@ -150,8 +158,18 @@ inline double SS_DrawSDRandomEffects::posterior_function(Patient *patient,
   first_part  = patient->get_pulsecount() * (log(patient_sd) - log(proposal));
   second_part = 0.5 * ((1 / (patient_sd * patient_sd)) - (1 / (proposal * proposal)));
     
-  // 4th part of acceptance ratio: Ratio of priors
+  // 4th part of acceptance ratio: Ratio of priors on the pulse-to-pulse SD.
+  // This axis is orthogonal to lognormal_pulses: only the prior ratio changes.
+  if (patient->uniform_sd_prior) {
+    // Uniform(0, max): the density is constant on its support, and both the
+    // current SD and the proposal are inside (0, max) (parameter_support rejects
+    // out-of-support proposals before posterior_function is ever called), so the
+    // prior ratio is log(1/max) - log(1/max) = 0.
+    fourth_part = 0.0;
+  } else {
+    // Half-Cauchy prior with scale patient_sd_param (research option).
     fourth_part = log(patient_sd_param + patient_sd * patient_sd) - log(patient_sd_param + proposal * proposal);
+  }
 
   // Compute and return log rho
   return old_int - new_int + first_part + second_part * third_part + fourth_part;
