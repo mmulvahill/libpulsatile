@@ -92,7 +92,9 @@ struct JointSamplers {
                 double univ_target,
                 bool verbose,
                 int verbose_iter,
-                std::string loc_prior);
+                std::string loc_prior,
+                bool driver_lognormal = false,
+                bool response_lognormal = false);
 
   // Destructor
   ~JointSamplers();
@@ -107,7 +109,9 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
                                     double univ_target,
                                     bool verbose,
                                     int verbose_iter,
-                                    std::string loc_prior) {
+                                    std::string loc_prior,
+                                    bool driver_lognormal,
+                                    bool response_lognormal) {
 
   // Driver samplers
   arma::vec driver_bhl_pv = { Rcpp::as<double>(proposalvars["driver_baseline"]),
@@ -115,13 +119,16 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
   driver_draw_blhl = new SS_DrawBaselineHalflife(driver_bhl_pv, adj_iter, adj_max,
                                                   biv_target, verbose, verbose_iter);
 
+  // Thread the driver's log-normal flag into its mass/width MEAN full
+  // conditionals (the MMH container type is `bool`, so the flag is passed at
+  // construction rather than read from the Patient).
   driver_draw_fixeff_mass = new SS_DrawFixedEffects(
     Rcpp::as<double>(proposalvars["driver_mass_mean"]),
-    adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
+    adj_iter, adj_max, univ_target, false, verbose, verbose_iter, driver_lognormal);
 
   driver_draw_fixeff_width = new SS_DrawFixedEffects(
     Rcpp::as<double>(proposalvars["driver_width_mean"]),
-    adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
+    adj_iter, adj_max, univ_target, true, verbose, verbose_iter, driver_lognormal);
 
   if (loc_prior == "strauss") {
     driver_draw_locations = new SS_DrawLocationsStrauss(
@@ -161,13 +168,15 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
   response_draw_blhl = new SS_DrawBaselineHalflife(response_bhl_pv, adj_iter, adj_max,
                                                     biv_target, verbose, verbose_iter);
 
+  // Thread the response's log-normal flag into its mass/width MEAN full
+  // conditionals (see driver note above).
   response_draw_fixeff_mass = new SS_DrawFixedEffects(
     Rcpp::as<double>(proposalvars["response_mass_mean"]),
-    adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
+    adj_iter, adj_max, univ_target, false, verbose, verbose_iter, response_lognormal);
 
   response_draw_fixeff_width = new SS_DrawFixedEffects(
     Rcpp::as<double>(proposalvars["response_width_mean"]),
-    adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
+    adj_iter, adj_max, univ_target, true, verbose, verbose_iter, response_lognormal);
 
   if (loc_prior == "strauss") {
     response_draw_locations = new SS_DrawLocationsStrauss(

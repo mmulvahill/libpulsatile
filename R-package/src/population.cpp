@@ -70,6 +70,20 @@ Rcpp::List population_(Rcpp::List subject_data_list,
     student_t_pulses = (Rf_asReal(population_priors["student_t_pulses"]) != 0.0);
   }
 
+  // Pulse random-effects scale: log-normal (papers/Horton) vs natural-scale
+  // truncated-normal (research). And SD prior: uniform vs half-Cauchy. Both are
+  // optional elements of the priors list so the exported signature is unchanged;
+  // absent -> false (natural-scale / half-Cauchy) to preserve legacy behavior.
+  // Read as reals so a logical or numeric both work.
+  bool lognormal_pulses = false;
+  if (population_priors.containsElementNamed("lognormal_pulses")) {
+    lognormal_pulses = (Rf_asReal(population_priors["lognormal_pulses"]) != 0.0);
+  }
+  bool uniform_sd_prior = false;
+  if (population_priors.containsElementNamed("uniform_sd_prior")) {
+    uniform_sd_prior = (Rf_asReal(population_priors["uniform_sd_prior"]) != 0.0);
+  }
+
   Rcpp::Rcout << "==================================================" << std::endl;
   Rcpp::Rcout << "Population Model MCMC" << std::endl;
   Rcpp::Rcout << "==================================================" << std::endl;
@@ -104,6 +118,12 @@ Rcpp::List population_(Rcpp::List subject_data_list,
     population_priors["strauss_repulsion"],
     population_priors["strauss_repulsion_range"]
   );
+
+  // Store the pulse parameterization flags on the priors so the population-level
+  // SD draw (Pop_DrawPulseSDs) can reach them via the `population` pointer, and so
+  // pop_mcmc_iteration can propagate them onto each subject every iteration.
+  pop_priors.lognormal_pulses = lognormal_pulses;
+  pop_priors.uniform_sd_prior = uniform_sd_prior;
 
   //
   // Create PopulationEstimates object (with starting values)
@@ -180,6 +200,8 @@ Rcpp::List population_(Rcpp::List subject_data_list,
     // Create Patient object and add to vector
     Patient patient(data, priors, estimates);
     patient.gaussian_random_effects = !student_t_pulses;
+    patient.lognormal_pulses        = lognormal_pulses;
+    patient.uniform_sd_prior        = uniform_sd_prior;
     subjects.push_back(patient);
   }
 
@@ -196,7 +218,8 @@ Rcpp::List population_(Rcpp::List subject_data_list,
   // Create sampler objects
   //
   PopulationSamplers samplers(proposalvars, adj_iter, adj_max, biv_target,
-                               univ_target, verbose, verbose_iter, loc_prior);
+                               univ_target, verbose, verbose_iter, loc_prior,
+                               lognormal_pulses);
 
   //
   // Create output objects (chains)

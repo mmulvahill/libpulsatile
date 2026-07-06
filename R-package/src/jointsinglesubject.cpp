@@ -122,6 +122,23 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     driver_patient.gaussian_random_effects = !driver_student_t;
   }
 
+  // Pulse random-effects scale (log-normal vs natural-scale truncated-normal) and
+  // SD prior (uniform vs half-Cauchy) for the driver. Optional priors-list
+  // elements; absent -> false (legacy natural-scale / half-Cauchy). The
+  // SS_DrawSDRandomEffects and birth-death read these flags DIRECTLY from the
+  // Patient; the mass/width MEAN draws take the log-normal flag at construction
+  // (threaded into JointSamplers below).
+  bool driver_lognormal = false;
+  if (driver_priors.containsElementNamed("lognormal_pulses")) {
+    driver_lognormal = (Rf_asReal(driver_priors["lognormal_pulses"]) != 0.0);
+  }
+  bool driver_uniform_sd = false;
+  if (driver_priors.containsElementNamed("uniform_sd_prior")) {
+    driver_uniform_sd = (Rf_asReal(driver_priors["uniform_sd_prior"]) != 0.0);
+  }
+  driver_patient.lognormal_pulses = driver_lognormal;
+  driver_patient.uniform_sd_prior = driver_uniform_sd;
+
   //
   // Initialize response hormone patient
   //
@@ -160,6 +177,18 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     }
     response_patient.gaussian_random_effects = !response_student_t;
   }
+
+  // Pulse random-effects scale + SD prior for the response (see driver note above).
+  bool response_lognormal = false;
+  if (response_priors.containsElementNamed("lognormal_pulses")) {
+    response_lognormal = (Rf_asReal(response_priors["lognormal_pulses"]) != 0.0);
+  }
+  bool response_uniform_sd = false;
+  if (response_priors.containsElementNamed("uniform_sd_prior")) {
+    response_uniform_sd = (Rf_asReal(response_priors["uniform_sd_prior"]) != 0.0);
+  }
+  response_patient.lognormal_pulses = response_lognormal;
+  response_patient.uniform_sd_prior = response_uniform_sd;
 
   //
   // Initialize association parameters
@@ -203,7 +232,8 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
   std::string loc_prior_str = Rcpp::as<std::string>(location_prior[0]);
   JointSamplers samplers(proposalvars, pv_adjust_iter, pv_adjust_max_iter,
                         bivariate_pv_target_ratio, univariate_pv_target_ratio,
-                        verbose, mcmc_iterations, loc_prior_str);
+                        verbose, mcmc_iterations, loc_prior_str,
+                        driver_lognormal, response_lognormal);
 
   //
   // Initialize output chains
