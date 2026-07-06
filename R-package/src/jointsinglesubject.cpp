@@ -111,6 +111,17 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     driver_startingvals["width_sd"]);
   Patient driver_patient(driver_data, driver_patient_priors, driver_estimates);
 
+  // Random-effects distribution for the driver: Student-t (default, per-pulse
+  // t-scale kappa) or Gaussian (kappa fixed at 1). Optional element of the
+  // priors list; absent -> Student-t. Read as a real so logical/numeric both work.
+  {
+    bool driver_student_t = true;
+    if (driver_priors.containsElementNamed("student_t_pulses")) {
+      driver_student_t = (Rf_asReal(driver_priors["student_t_pulses"]) != 0.0);
+    }
+    driver_patient.gaussian_random_effects = !driver_student_t;
+  }
+
   //
   // Initialize response hormone patient
   //
@@ -140,6 +151,15 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     response_startingvals["mass_sd"],
     response_startingvals["width_sd"]);
   Patient response_patient(response_data, response_patient_priors, response_estimates);
+
+  // Random-effects distribution for the response (see driver note above).
+  {
+    bool response_student_t = true;
+    if (response_priors.containsElementNamed("student_t_pulses")) {
+      response_student_t = (Rf_asReal(response_priors["student_t_pulses"]) != 0.0);
+    }
+    response_patient.gaussian_random_effects = !response_student_t;
+  }
 
   //
   // Initialize association parameters
@@ -191,11 +211,11 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
   int num_saved = (mcmc_iterations - burnin) / thin;
 
   // Driver chains
-  arma::mat driver_fixed_effects_chain(num_saved, 5, arma::fill::zeros);  // baseline, halflife, mass_mean, width_mean, errorsq
+  arma::mat driver_fixed_effects_chain(num_saved, 7, arma::fill::zeros);  // baseline, halflife, mass_mean, width_mean, errorsq, mass_sd, width_sd
   MatrixVector driver_pulse_chains;
 
   // Response chains
-  arma::mat response_fixed_effects_chain(num_saved, 5, arma::fill::zeros);  // baseline, halflife, mass_mean, width_mean, errorsq
+  arma::mat response_fixed_effects_chain(num_saved, 7, arma::fill::zeros);  // baseline, halflife, mass_mean, width_mean, errorsq, mass_sd, width_sd
   MatrixVector response_pulse_chains;
 
   // Association chains
@@ -229,6 +249,8 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
       driver_fixed_effects_chain(save_index, 2) = driver_patient.estimates.mass_mean;
       driver_fixed_effects_chain(save_index, 3) = driver_patient.estimates.width_mean;
       driver_fixed_effects_chain(save_index, 4) = driver_patient.estimates.errorsq;
+      driver_fixed_effects_chain(save_index, 5) = driver_patient.estimates.mass_sd;
+      driver_fixed_effects_chain(save_index, 6) = driver_patient.estimates.width_sd;
 
       // Driver pulses
       arma::mat driver_pulses_matrix(driver_patient.get_pulsecount(), 5);
@@ -244,6 +266,8 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
       response_fixed_effects_chain(save_index, 2) = response_patient.estimates.mass_mean;
       response_fixed_effects_chain(save_index, 3) = response_patient.estimates.width_mean;
       response_fixed_effects_chain(save_index, 4) = response_patient.estimates.errorsq;
+      response_fixed_effects_chain(save_index, 5) = response_patient.estimates.mass_sd;
+      response_fixed_effects_chain(save_index, 6) = response_patient.estimates.width_sd;
 
       // Response pulses (including lambda)
       arma::mat response_pulses_matrix(response_patient.get_pulsecount(), 6);
@@ -291,9 +315,9 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     Rcpp::Named("response_pulses") = response_pulse_list,
     Rcpp::Named("association") = association_chain,
     Rcpp::Named("driver_colnames") = Rcpp::CharacterVector::create(
-      "baseline", "halflife", "mass_mean", "width_mean", "errorsq"),
+      "baseline", "halflife", "mass_mean", "width_mean", "errorsq", "mass_sd", "width_sd"),
     Rcpp::Named("response_colnames") = Rcpp::CharacterVector::create(
-      "baseline", "halflife", "mass_mean", "width_mean", "errorsq"),
+      "baseline", "halflife", "mass_mean", "width_mean", "errorsq", "mass_sd", "width_sd"),
     Rcpp::Named("driver_pulse_colnames") = Rcpp::CharacterVector::create(
       "time", "mass", "width", "tvarscale_mass", "tvarscale_width"),
     Rcpp::Named("response_pulse_colnames") = Rcpp::CharacterVector::create(

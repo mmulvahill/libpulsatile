@@ -251,8 +251,10 @@ inline void JointBirthDeathProcess::add_new_response_pulse(
 
   double new_mass  = -1.;
   double new_width = -1.;
-  double new_tvarscale_mass  = Rf_rgamma(2, 0.5);
-  double new_tvarscale_width = Rf_rgamma(2, 0.5);
+  // With Gaussian random effects the per-pulse t-scale (kappa) is fixed at 1;
+  // otherwise draw it from the Gamma(2, 0.5) mixing distribution (Student-t).
+  double new_tvarscale_mass  = response_patient->gaussian_random_effects ? 1.0 : Rf_rgamma(2, 0.5);
+  double new_tvarscale_width = response_patient->gaussian_random_effects ? 1.0 : Rf_rgamma(2, 0.5);
   double new_t_sd_mass  = response_patient->estimates.mass_sd / sqrt(new_tvarscale_mass);
   double new_t_sd_width = response_patient->estimates.width_sd / sqrt(new_tvarscale_width);
 

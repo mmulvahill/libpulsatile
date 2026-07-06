@@ -38,7 +38,8 @@ pulse_spec(
   pv_sd_pulse_width = 4000,
   pv_sdscale_pulse_mass = 4,
   pv_sdscale_pulse_width = 4,
-  pv_pulse_location = 65
+  pv_pulse_location = 65,
+  student_t_pulses = TRUE
 )
 }
 \arguments{
@@ -115,6 +116,15 @@ specification of "prior_mean_pulse_count", "prior_location_gamma", and
 \item{pv_sdscale_pulse_width}{placeholder}
 
 \item{pv_pulse_location}{placeholder}
+
+\item{student_t_pulses}{Logical. If \code{TRUE} (default), pulse mass and
+width random effects follow a Student-t distribution via a per-pulse
+t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
+pulse random effects. Setting this to \code{FALSE} removes the weak
+identifiability ridge between the pulse-to-pulse SD and the per-pulse
+t-scales, which can improve mixing of the SD parameters (notably the SD of
+pulse width) at the cost of no longer accommodating heavy-tailed pulses.}
 }
 \description{
 Generates a pulse_spec object -- the specification object required for

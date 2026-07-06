@@ -49,6 +49,14 @@
 #' @param pv_sdscale_pulse_mass placeholder
 #' @param pv_sdscale_pulse_width placeholder
 #' @param pv_pulse_location placeholder
+#' @param student_t_pulses Logical. If \code{TRUE} (default), pulse mass and
+#'   width random effects follow a Student-t distribution via a per-pulse
+#'   t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+#'   t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
+#'   pulse random effects. Setting this to \code{FALSE} removes the weak
+#'   identifiability ridge between the pulse-to-pulse SD and the per-pulse
+#'   t-scales, which can improve mixing of the SD parameters (notably the SD of
+#'   pulse width) at the cost of no longer accommodating heavy-tailed pulses.
 #' @export
 #' @keywords pulse simulation
 pulse_spec <-
@@ -85,15 +93,19 @@ pulse_spec <-
            pv_sd_pulse_width      = 4000,
            pv_sdscale_pulse_mass  = 4,
            pv_sdscale_pulse_width = 4,
-           pv_pulse_location      = 65) 
+           pv_pulse_location      = 65,
+           student_t_pulses       = TRUE)
   {
 
     # TODO: Research better ways to do this range/valid-value checking.  Pretty
     # much all of the args need it.
     location_prior_type <- match.arg(location_prior_type)
-    if (length(location_prior_type) > 1L) 
+    if (length(location_prior_type) > 1L)
       stop(paste("location_prior_type is a required argument -- choose",
                  "'order-statistic' or 'strauss'"))
+    if (!is.logical(student_t_pulses) || length(student_t_pulses) != 1L ||
+        is.na(student_t_pulses))
+      stop("student_t_pulses must be a single logical (TRUE or FALSE)")
     if (prior_mean_pulse_count <= 0)
       stop(paste("prior_mean_pulse_count must be > 0."))
 
@@ -138,7 +150,8 @@ pulse_spec <-
                            error_beta              = prior_error_beta,
                            pulse_count             = prior_mean_pulse_count,
                            strauss_repulsion       = prior_location_gamma,
-                           strauss_repulsion_range = prior_location_range),
+                           strauss_repulsion_range = prior_location_range,
+                           student_t_pulses        = student_t_pulses),
              proposal_variances = list(mass_mean   = pv_mean_pulse_mass,
                                        width_mean  = pv_mean_pulse_width,
                                        mass_sd     = pv_sd_pulse_mass,

@@ -69,6 +69,14 @@
 #' @param pv_sdscale_pulse_mass Proposal variance for pulse mass t-distribution scales
 #' @param pv_sdscale_pulse_width Proposal variance for pulse width t-distribution scales
 #' @param pv_pulse_location Proposal variance for pulse locations
+#' @param student_t_pulses Logical. If \code{TRUE} (default), pulse mass and
+#'   width random effects follow a Student-t distribution via a per-pulse
+#'   t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+#'   t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
+#'   pulse random effects. Applies to every subject. Setting this to
+#'   \code{FALSE} removes the weak-identifiability ridge between the
+#'   pulse-to-pulse SD and the per-pulse t-scales, which can improve mixing of
+#'   the SD parameters (notably the SD of pulse width).
 #'
 #' @return A list of class \code{population_spec} containing:
 #'   \item{location_prior}{Type of location prior ("strauss" or "order-statistic")}
@@ -130,7 +138,7 @@ population_spec <- function(
   sv_baseline_sd = 0.5,
   sv_halflife_sd = 5,
   sv_mass_sd = 1.6,
-  sv_width_sd = 35,
+  sv_width_sd = 15,
   sv_error_var = 0.005,
   
   # Proposal variances - population parameters
@@ -154,11 +162,19 @@ population_spec <- function(
   pv_indiv_pulse_width = 15000,
   pv_sdscale_pulse_mass = 4,
   pv_sdscale_pulse_width = 4,
-  pv_pulse_location = 65
+  pv_pulse_location = 65,
+
+  # Random-effects distribution
+  student_t_pulses = TRUE
 ) {
-  
+
   # Input validation
   location_prior_type <- match.arg(location_prior_type)
+
+  if (!is.logical(student_t_pulses) || length(student_t_pulses) != 1L ||
+      is.na(student_t_pulses)) {
+    stop("student_t_pulses must be a single logical (TRUE or FALSE)")
+  }
   
   if (length(location_prior_type) > 1L) {
     stop(paste("location_prior_type is a required argument -- choose",
@@ -197,11 +213,35 @@ population_spec <- function(
     stop("All SD max parameters must be > 0")
   }
   
-  if (any(c(sv_mass_mean_sd, sv_width_mean_sd, sv_baseline_sd, 
+  if (any(c(sv_mass_mean_sd, sv_width_mean_sd, sv_baseline_sd,
             sv_halflife_sd, sv_mass_sd, sv_width_sd, sv_error_var) <= 0)) {
     stop("All starting value SD and variance parameters must be > 0")
   }
-  
+
+  # Each SD parameter has a Uniform(0, max) prior, so its starting value must lie
+  # strictly inside that support -- otherwise the chain begins outside its own
+  # prior and every proposal is rejected until it happens to land in range.
+  sd_starts <- c(mass_mean_sd = sv_mass_mean_sd,
+                 width_mean_sd = sv_width_mean_sd,
+                 baseline_sd = sv_baseline_sd,
+                 halflife_sd = sv_halflife_sd,
+                 mass_sd = sv_mass_sd,
+                 width_sd = sv_width_sd)
+  sd_maxes  <- c(mass_mean_sd = prior_mass_mean_sd_max,
+                 width_mean_sd = prior_width_mean_sd_max,
+                 baseline_sd = prior_baseline_sd_max,
+                 halflife_sd = prior_halflife_sd_max,
+                 mass_sd = prior_mass_sd_max,
+                 width_sd = prior_width_sd_max)
+  bad <- which(sd_starts >= sd_maxes)
+  if (length(bad) > 0) {
+    stop(paste0("Starting value(s) outside the Uniform(0, max) prior support: ",
+                paste(sprintf("sv_%s = %g >= max %g",
+                              names(sd_starts)[bad], sd_starts[bad], sd_maxes[bad]),
+                      collapse = "; "),
+                ". Lower the starting value or raise the corresponding *_sd_max."))
+  }
+
   # Create specification object
   spec_obj <- structure(
     list(
@@ -227,7 +267,8 @@ population_spec <- function(
         error_beta = prior_error_beta,
         pulse_count = prior_mean_pulse_count,
         strauss_repulsion = prior_location_gamma,
-        strauss_repulsion_range = prior_location_range
+        strauss_repulsion_range = prior_location_range,
+        student_t_pulses = student_t_pulses
       ),
       
       # Proposal variances

@@ -60,6 +60,23 @@ test_that("population_spec() validates inputs correctly", {
                     prior_location_gamma = NULL),
     "required"
   )
+
+  # Starting SD value must lie inside its Uniform(0, max) prior support
+  expect_error(
+    population_spec(sv_width_sd = 35, prior_width_sd_max = 30),
+    "outside the Uniform"
+  )
+
+  # Default spec keeps every starting SD inside its prior support
+  expect_s3_class(population_spec(), "population_spec")
+})
+
+
+test_that("population_spec() carries the student_t_pulses flag", {
+  expect_true(isTRUE(population_spec()$population_priors$student_t_pulses))
+  expect_false(isTRUE(
+    population_spec(student_t_pulses = FALSE)$population_priors$student_t_pulses))
+  expect_error(population_spec(student_t_pulses = "no"), "single logical")
 })
 
 

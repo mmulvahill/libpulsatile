@@ -61,6 +61,15 @@ Rcpp::List population_(Rcpp::List subject_data_list,
   double univ_target = univariate_pv_target_ratio;
   std::string loc_prior = Rcpp::as<std::string>(location_prior);
 
+  // Random-effects distribution: Student-t (default, via per-pulse t-scale
+  // kappa) or Gaussian (kappa fixed at 1). Optional element of the priors list
+  // so the exported signature is unchanged; absent -> Student-t. Read as a real
+  // so a logical or numeric both work.
+  bool student_t_pulses = true;
+  if (population_priors.containsElementNamed("student_t_pulses")) {
+    student_t_pulses = (Rf_asReal(population_priors["student_t_pulses"]) != 0.0);
+  }
+
   Rcpp::Rcout << "==================================================" << std::endl;
   Rcpp::Rcout << "Population Model MCMC" << std::endl;
   Rcpp::Rcout << "==================================================" << std::endl;
@@ -170,6 +179,7 @@ Rcpp::List population_(Rcpp::List subject_data_list,
 
     // Create Patient object and add to vector
     Patient patient(data, priors, estimates);
+    patient.gaussian_random_effects = !student_t_pulses;
     subjects.push_back(patient);
   }
 

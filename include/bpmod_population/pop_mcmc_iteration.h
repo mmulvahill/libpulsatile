@@ -213,8 +213,12 @@ inline void population_mcmc_iteration(Population *population,
     samplers.draw_locations->sample_pulses(&subject, iteration);
     samplers.draw_masses->sample_pulses(&subject, iteration);
     samplers.draw_widths->sample_pulses(&subject, iteration);
-    samplers.draw_tvarscale_mass->sample_pulses(&subject, iteration);
-    samplers.draw_tvarscale_width->sample_pulses(&subject, iteration);
+    // Skip the t-scale (kappa) draws under Gaussian random effects; kappa stays
+    // fixed at 1 for every pulse.
+    if (!subject.gaussian_random_effects) {
+      samplers.draw_tvarscale_mass->sample_pulses(&subject, iteration);
+      samplers.draw_tvarscale_width->sample_pulses(&subject, iteration);
+    }
   }
 
   //

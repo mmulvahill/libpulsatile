@@ -101,6 +101,18 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
     // Now take all of this and create a Patient object
     Patient pat(data, priors, estimates);
     patient = &pat;
+
+    // Random-effects distribution: Student-t (default, via per-pulse t-scale
+    // kappa) or Gaussian (kappa fixed at 1). Carried as an optional element of
+    // the priors list so the exported signature is unchanged; older specs
+    // without it default to the Student-t behavior.
+    // Read as a real so a logical (TRUE/FALSE) or a numeric (1/0) both work,
+    // regardless of how the R wrapper coerces the priors list.
+    bool student_t_pulses = true;
+    if (inpriors.containsElementNamed("student_t_pulses")) {
+      student_t_pulses = (Rf_asReal(inpriors["student_t_pulses"]) != 0.0);
+    }
+    pat.gaussian_random_effects = !student_t_pulses;
 //  }
 
   //double like = patient->likelihood(false);
@@ -187,13 +199,17 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
     draw_fixeff_mass.sample(patient, &patient->estimates.mass_mean, iteration);
     draw_fixeff_width.sample(patient, &patient->estimates.width_mean, iteration);
     draw_sd_masses.sample(patient, &patient->estimates.mass_sd, patient, iteration);
-    //draw_sd_widths.sample(patient, &patient->estimates.width_sd, patient, iteration);
+    draw_sd_widths.sample(patient, &patient->estimates.width_sd, patient, iteration);
     draw_blhl.sample(patient, &patient->estimates.baseline_halflife, iteration);
     draw_locations->sample_pulses(patient, iteration);
     draw_masses.sample_pulses(patient, iteration);
     draw_widths.sample_pulses(patient, iteration);
-    draw_tvarscale_mass.sample_pulses(patient, iteration);
-    draw_tvarscale_width.sample_pulses(patient, iteration);
+    // Skip the t-scale (kappa) draws under Gaussian random effects; kappa stays
+    // fixed at 1 for every pulse.
+    if (student_t_pulses) {
+      draw_tvarscale_mass.sample_pulses(patient, iteration);
+      draw_tvarscale_width.sample_pulses(patient, iteration);
+    }
     draw_error.sample(patient);
     chains.save_sample(patient, iteration);
 

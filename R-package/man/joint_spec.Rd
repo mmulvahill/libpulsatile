@@ -79,7 +79,8 @@ joint_spec(
   pv_response_sdscale_pulse_width = 4,
   pv_response_pulse_location = 65,
   pv_log_rho = 0.1,
-  pv_log_nu = 0.1
+  pv_log_nu = 0.1,
+  student_t_pulses = TRUE
 )
 }
 \arguments{
@@ -108,9 +109,9 @@ specification of "prior_mean_pulse_count", "prior_location_gamma", and
 
 \item{prior_driver_error_beta}{Gamma rate parameter for driver error}
 
-\item{prior_driver_sd_mass}{Upper bound (uniform prior) for driver pulse-to-pulse SD of mass}
+\item{prior_driver_sd_mass}{Scale parameter of the half-Cauchy prior on the driver pulse-to-pulse SD of mass}
 
-\item{prior_driver_sd_width}{Upper bound (uniform prior) for driver pulse-to-pulse SD of width}
+\item{prior_driver_sd_width}{Scale parameter of the half-Cauchy prior on the driver pulse-to-pulse SD of width}
 
 \item{prior_driver_pulse_count}{Mean of Poisson prior on driver pulse count}
 
@@ -138,9 +139,9 @@ specification of "prior_mean_pulse_count", "prior_location_gamma", and
 
 \item{prior_response_error_beta}{Gamma rate parameter for response error}
 
-\item{prior_response_sd_mass}{Upper bound (uniform prior) for response pulse-to-pulse SD of mass}
+\item{prior_response_sd_mass}{Scale parameter of the half-Cauchy prior on the response pulse-to-pulse SD of mass}
 
-\item{prior_response_sd_width}{Upper bound (uniform prior) for response pulse-to-pulse SD of width}
+\item{prior_response_sd_width}{Scale parameter of the half-Cauchy prior on the response pulse-to-pulse SD of width}
 
 \item{prior_response_pulse_count}{Mean of Poisson prior on response pulse count}
 
@@ -235,6 +236,15 @@ specification of "prior_mean_pulse_count", "prior_location_gamma", and
 \item{pv_log_rho}{Proposal variance for log(rho)}
 
 \item{pv_log_nu}{Proposal variance for log(nu)}
+
+\item{student_t_pulses}{Logical. If \code{TRUE} (default), pulse mass and
+width random effects follow a Student-t distribution via a per-pulse
+t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
+pulse random effects. Applies to both the driver and response hormones.
+Setting this to \code{FALSE} removes the weak-identifiability ridge between
+the pulse-to-pulse SD and the per-pulse t-scales, which can improve mixing
+of the SD parameters (notably the SD of pulse width).}
 }
 \value{
 A list of class \code{joint_spec} containing:
