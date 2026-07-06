@@ -36,12 +36,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # TEMPORARY (diagnostic): un-redact the agent's tool calls in the job
-          # log so we can see how it attempts to post its review. The review job
-          # runs to success but posts no comment, and the default log hides the
-          # SDK output ("full output hidden for security"), so the posting failure
-          # is invisible. Remove this once the root cause is fixed.
-          show_full_output: true
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
