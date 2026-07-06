@@ -25,6 +25,16 @@
 //     τ²_n = 1 / (1/τ²_0 + n/υ²)
 //     μ_n  = τ²_n * (μ_0/τ²_0 + Σθ_i/υ²)
 //
+//   Log-normal note: this Gibbs draw is UNCHANGED under the log-normal pulse
+//   parameterization. It is a normal-normal conjugate update that is
+//   scale-agnostic: the subject means θ_i and the population mean μ live on
+//   whatever scale the fixed-effects draw uses (log scale under log-normal,
+//   natural scale otherwise), and the conjugate posterior N(μ_n, τ²_n) is exact
+//   for an UNTRUNCATED normal -- which is exactly what the log-normal model
+//   gives. The code makes no positivity/truncation assumption (μ is drawn with a
+//   plain R::rnorm and may be negative, as required for a log-scale mean), so no
+//   branch is needed.
+//
 
 class Pop_DrawMeans 
 {

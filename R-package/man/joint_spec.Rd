@@ -6,33 +6,33 @@
 \usage{
 joint_spec(
   location_prior_type = "strauss",
-  prior_driver_mass_mean = 3.5,
-  prior_driver_mass_var = 100,
-  prior_driver_width_mean = 42,
-  prior_driver_width_var = 1000,
+  prior_driver_mass_mean = NULL,
+  prior_driver_mass_var = NULL,
+  prior_driver_width_mean = NULL,
+  prior_driver_width_var = NULL,
   prior_driver_baseline_mean = 2.6,
   prior_driver_baseline_var = 100,
   prior_driver_halflife_mean = 45,
   prior_driver_halflife_var = 100,
   prior_driver_error_alpha = 1e-04,
   prior_driver_error_beta = 1e-04,
-  prior_driver_sd_mass = 5,
-  prior_driver_sd_width = 5,
+  prior_driver_sd_mass = NULL,
+  prior_driver_sd_width = NULL,
   prior_driver_pulse_count = 12,
   prior_driver_location_gamma = 0,
   prior_driver_location_range = 40,
-  prior_response_mass_mean = 3.5,
-  prior_response_mass_var = 100,
-  prior_response_width_mean = 42,
-  prior_response_width_var = 1000,
+  prior_response_mass_mean = NULL,
+  prior_response_mass_var = NULL,
+  prior_response_width_mean = NULL,
+  prior_response_width_var = NULL,
   prior_response_baseline_mean = 2.6,
   prior_response_baseline_var = 100,
   prior_response_halflife_mean = 45,
   prior_response_halflife_var = 100,
   prior_response_error_alpha = 1e-04,
   prior_response_error_beta = 1e-04,
-  prior_response_sd_mass = 5,
-  prior_response_sd_width = 5,
+  prior_response_sd_mass = NULL,
+  prior_response_sd_width = NULL,
   prior_response_pulse_count = 12,
   prior_response_location_gamma = 0,
   prior_response_location_range = 40,
@@ -40,47 +40,49 @@ joint_spec(
   prior_log_rho_var = 1,
   prior_log_nu_mean = 3,
   prior_log_nu_var = 1,
-  sv_driver_mass_mean = 3.5,
-  sv_driver_width_mean = 42,
+  sv_driver_mass_mean = NULL,
+  sv_driver_width_mean = NULL,
   sv_driver_baseline_mean = 2.6,
   sv_driver_halflife_mean = 45,
   sv_driver_error_var = 0.005,
-  sv_driver_mass_sd = 1.6,
-  sv_driver_width_sd = 35,
-  sv_response_mass_mean = 3.5,
-  sv_response_width_mean = 42,
+  sv_driver_mass_sd = NULL,
+  sv_driver_width_sd = NULL,
+  sv_response_mass_mean = NULL,
+  sv_response_width_mean = NULL,
   sv_response_baseline_mean = 2.6,
   sv_response_halflife_mean = 45,
   sv_response_error_var = 0.005,
-  sv_response_mass_sd = 1.6,
-  sv_response_width_sd = 35,
+  sv_response_mass_sd = NULL,
+  sv_response_width_sd = NULL,
   sv_rho = 1,
   sv_nu = 20,
   pv_driver_baseline = 0.02,
   pv_driver_halflife = 1.5,
-  pv_driver_mean_pulse_mass = 6,
-  pv_driver_mean_pulse_width = 3700,
-  pv_driver_indiv_pulse_mass = 1,
-  pv_driver_indiv_pulse_width = 15000,
-  pv_driver_sd_pulse_mass = 4.5,
-  pv_driver_sd_pulse_width = 4000,
+  pv_driver_mean_pulse_mass = NULL,
+  pv_driver_mean_pulse_width = NULL,
+  pv_driver_indiv_pulse_mass = NULL,
+  pv_driver_indiv_pulse_width = NULL,
+  pv_driver_sd_pulse_mass = NULL,
+  pv_driver_sd_pulse_width = NULL,
   pv_driver_sdscale_pulse_mass = 4,
   pv_driver_sdscale_pulse_width = 4,
   pv_driver_pulse_location = 65,
   pv_response_baseline = 0.02,
   pv_response_halflife = 1.5,
-  pv_response_mean_pulse_mass = 6,
-  pv_response_mean_pulse_width = 3700,
-  pv_response_indiv_pulse_mass = 1,
-  pv_response_indiv_pulse_width = 15000,
-  pv_response_sd_pulse_mass = 4.5,
-  pv_response_sd_pulse_width = 4000,
+  pv_response_mean_pulse_mass = NULL,
+  pv_response_mean_pulse_width = NULL,
+  pv_response_indiv_pulse_mass = NULL,
+  pv_response_indiv_pulse_width = NULL,
+  pv_response_sd_pulse_mass = NULL,
+  pv_response_sd_pulse_width = NULL,
   pv_response_sdscale_pulse_mass = 4,
   pv_response_sdscale_pulse_width = 4,
   pv_response_pulse_location = 65,
   pv_log_rho = 0.1,
   pv_log_nu = 0.1,
-  student_t_pulses = TRUE
+  pulse_distribution = c("lognormal", "truncnorm"),
+  sd_prior = c("uniform", "half_cauchy"),
+  student_t_pulses = FALSE
 )
 }
 \arguments{
@@ -237,9 +239,20 @@ specification of "prior_mean_pulse_count", "prior_location_gamma", and
 
 \item{pv_log_nu}{Proposal variance for log(nu)}
 
-\item{student_t_pulses}{Logical. If \code{TRUE} (default), pulse mass and
-width random effects follow a Student-t distribution via a per-pulse
-t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+\item{pulse_distribution}{Character, one of \code{"lognormal"} (default) or
+\code{"truncnorm"}, applied to both hormones. \code{"lognormal"} places the
+pulse mass/width random effects on the log scale and selects the log-scale
+numeric defaults for any argument left unspecified; \code{"truncnorm"} keeps
+the legacy natural-scale truncated-normal random effects and defaults.}
+
+\item{sd_prior}{Character, one of \code{"uniform"} (default) or
+\code{"half_cauchy"}, applied to both hormones. Selects the prior on the
+pulse-to-pulse SDs; controls whether \code{prior_*_sd_mass}/
+\code{prior_*_sd_width} are the Uniform upper bound or the half-Cauchy scale.}
+
+\item{student_t_pulses}{Logical. If \code{TRUE}, pulse mass and width random
+effects follow a Student-t distribution via a per-pulse t-scale
+(\code{tvarscale}, kappa) scale-mixture. If \code{FALSE} (default), the
 t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
 pulse random effects. Applies to both the driver and response hormones.
 Setting this to \code{FALSE} removes the weak-identifiability ridge between
@@ -299,6 +312,17 @@ pulses influence the intensity of response hormone pulse occurrence.
 
 \section{Association Proposal Variances}{
 
+}
+
+\section{Breaking change (default parameterization)}{
+
+The out-of-the-box defaults are now \code{{lognormal, uniform, gaussian}}
+(both hormones), mirroring the single-subject paper model. Previously the
+defaults were \code{{truncnorm, half_cauchy, student-t}}. Under
+\code{"lognormal"} the mass/width prior means, starting values, and proposal
+variances live on the LOG scale. Call \code{joint_spec(pulse_distribution =
+"truncnorm", sd_prior = "half_cauchy", student_t_pulses = TRUE)} for the exact
+pre-change behavior.
 }
 
 \examples{

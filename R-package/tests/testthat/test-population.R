@@ -73,10 +73,104 @@ test_that("population_spec() validates inputs correctly", {
 
 
 test_that("population_spec() carries the student_t_pulses flag", {
-  expect_true(isTRUE(population_spec()$population_priors$student_t_pulses))
-  expect_false(isTRUE(
-    population_spec(student_t_pulses = FALSE)$population_priors$student_t_pulses))
+  # Default now flips to Gaussian (student_t_pulses = FALSE) per the papers.
+  expect_false(isTRUE(population_spec()$population_priors$student_t_pulses))
+  expect_true(isTRUE(
+    population_spec(student_t_pulses = TRUE)$population_priors$student_t_pulses))
   expect_error(population_spec(student_t_pulses = "no"), "single logical")
+})
+
+
+test_that("population_spec() defaults to lognormal / uniform and threads flags", {
+  spec <- population_spec()
+  expect_true(isTRUE(spec$population_priors$lognormal_pulses))
+  expect_true(isTRUE(spec$population_priors$uniform_sd_prior))
+  # Horton log-scale prior means and Uniform(0, 10) SD bounds.
+  expect_equal(spec$population_priors$mass_mean_mean, 1.0)
+  expect_equal(spec$population_priors$width_mean_mean, 3.0)
+  expect_equal(spec$population_priors$mass_sd_max, 10)
+  expect_equal(spec$population_priors$width_sd_max, 10)
+  # Log-scale starting values inside the Uniform(0, 10) support.
+  expect_equal(spec$population_starting_values$width_mean, 3.0)
+  expect_equal(spec$population_starting_values$width_sd, 0.7)
+  expect_true(spec$population_starting_values$width_sd <
+                spec$population_priors$width_sd_max)
+  # Log-scale proposal variances (natural-scale 3700/4000 would not mix on a
+  # log-width ~3 scale).
+  expect_true(spec$proposal_variances$width_mean <= 1)
+  expect_true(spec$proposal_variances$pop_width_sd <= 1)
+  expect_error(population_spec(pulse_distribution = "banana"), "should be one of")
+})
+
+
+test_that("population_spec() truncnorm/half_cauchy reproduces the pre-change spec", {
+  # half_cauchy is a no-op for the population model, so it now warns; suppress it
+  # here (the warning itself is checked in a dedicated test below).
+  spec <- suppressWarnings(population_spec(pulse_distribution = "truncnorm",
+                                           sd_prior = "half_cauchy",
+                                           student_t_pulses = TRUE))
+  pp <- spec$population_priors
+  expect_equal(pp$mass_mean_mean, 3.5)
+  expect_equal(pp$mass_mean_var, 100)
+  expect_equal(pp$width_mean_mean, 42)
+  expect_equal(pp$width_mean_var, 1000)
+  expect_equal(pp$halflife_mean_var, 100)
+  expect_equal(pp$mass_mean_sd_max, 5)
+  expect_equal(pp$width_mean_sd_max, 30)
+  expect_equal(pp$baseline_sd_max, 3)
+  expect_equal(pp$halflife_sd_max, 20)
+  expect_equal(pp$mass_sd_max, 5)
+  expect_equal(pp$width_sd_max, 30)
+  sv <- spec$population_starting_values
+  expect_equal(sv$mass_mean, 3.5)
+  expect_equal(sv$width_mean, 42)
+  expect_equal(sv$mass_mean_sd, 1.0)
+  expect_equal(sv$width_mean_sd, 10)
+  expect_equal(sv$mass_sd, 1.6)
+  expect_equal(sv$width_sd, 15)
+  pv <- spec$proposal_variances
+  expect_equal(pv$mass_mean, 6)
+  expect_equal(pv$width_mean, 3700)
+  expect_equal(pv$pop_mass_mean_sd, 2)
+  expect_equal(pv$pop_width_mean_sd, 500)
+  expect_equal(pv$pop_mass_sd, 4.5)
+  expect_equal(pv$pop_width_sd, 4000)
+  expect_equal(pv$pulse_mass, 1)
+  expect_equal(pv$pulse_width, 15000)
+})
+
+
+test_that("population_spec() warns and ignores sd_prior = 'half_cauchy'", {
+  # The population model only supports a Uniform SD prior; half_cauchy is a
+  # no-op, so it must warn but still return a valid (uniform) spec.
+  expect_warning(population_spec(sd_prior = "half_cauchy"),
+                 "only supports a Uniform SD prior")
+  # Still returns a valid spec (arg accepted, not a stop()). The population model
+  # ignores the SD-prior flag and always samples with a Uniform prior.
+  spec <- suppressWarnings(population_spec(sd_prior = "half_cauchy"))
+  expect_s3_class(spec, "population_spec")
+  # sd_prior is reset to "uniform" after warning, so the flag threaded into C++
+  # matches the always-Uniform sampler behavior.
+  expect_true(isTRUE(spec$population_priors$uniform_sd_prior))
+  # The default (uniform) path does not warn.
+  expect_warning(population_spec(sd_prior = "uniform"), NA)
+})
+
+
+test_that("population_spec() baseline/half-life priors are axis-INDEPENDENT", {
+  # prior_halflife_mean_var / prior_baseline_sd_max / prior_halflife_sd_max must
+  # NOT switch with pulse_distribution -- both axes use the fixed 100 / 3 / 20.
+  ln <- population_spec(pulse_distribution = "lognormal")$population_priors
+  tn <- population_spec(pulse_distribution = "truncnorm")$population_priors
+  expect_equal(ln$halflife_mean_var, 100)
+  expect_equal(ln$baseline_sd_max, 3)
+  expect_equal(ln$halflife_sd_max, 20)
+  expect_equal(tn$halflife_mean_var, 100)
+  expect_equal(tn$baseline_sd_max, 3)
+  expect_equal(tn$halflife_sd_max, 20)
+  # Pulse mass/width priors DO still switch with the axis.
+  expect_equal(ln$mass_mean_mean, 1.0)
+  expect_equal(tn$mass_mean_mean, 3.5)
 })
 
 
@@ -100,8 +194,12 @@ test_that("fit_pulse_population() runs with simulated data", {
                    width_mean = 35)
   })
   
-  # Create specification with small iterations for testing
+  # Create specification with small iterations for testing. simulate_pulse()
+  # generates data on the NATURAL scale, so fit the natural-scale (truncnorm)
+  # model -- otherwise the lognormal default would treat prior_width_mean_mean =
+  # 35 as a LOG-scale width mean (natural width ~ e^35), a meaningless config.
   spec <- population_spec(
+    pulse_distribution = "truncnorm",
     prior_mass_mean_mean = 3.5,
     prior_width_mean_mean = 35,
     prior_baseline_mean_mean = 2.6,
@@ -223,13 +321,15 @@ test_that("fit_pulse_population() custom subject starting values work", {
   set.seed(789)
   sim_data <- lapply(1:2, function(i) simulate_pulse(num_obs = 20))
   
-  # Custom starting values
+  # Custom starting values on the NATURAL scale (width_mean = 30/40), so fit the
+  # natural-scale (truncnorm) model to keep the data-generating and model scales
+  # coherent (the lognormal default would treat these as log-scale widths).
   custom_starts <- list(
     list(baseline = 2.5, halflife = 40, mass_mean = 3.0, width_mean = 30),
     list(baseline = 2.8, halflife = 50, mass_mean = 4.0, width_mean = 40)
   )
-  
-  spec <- population_spec()
+
+  spec <- population_spec(pulse_distribution = "truncnorm")
   
   fit <- fit_pulse_population(
     data = sim_data,
@@ -317,13 +417,21 @@ test_that("fit_pulse_population() produces reasonable parameter estimates", {
     )
   })
   
+  # simulate_pulse() generates data on the NATURAL scale, and this test checks
+  # recovery of the natural-scale truths (mass_mean 3.5, width_mean 35). The new
+  # default parameterization is lognormal, under which the population mass/width
+  # means live on the LOG scale and would not match these natural-scale
+  # expectations. Fit the natural-scale (truncnorm) model so the model scale
+  # matches the data-generating scale. (Log-scale recovery is covered separately
+  # by the sim-study; the population SD prior is uniform in either case.)
   spec <- population_spec(
+    pulse_distribution = "truncnorm",
     prior_mass_mean_mean = 3.5,
     prior_width_mean_mean = 35,
     prior_baseline_mean_mean = 2.6,
     prior_halflife_mean_mean = 45
   )
-  
+
   fit <- fit_pulse_population(
     data = sim_data,
     spec = spec,
@@ -332,7 +440,7 @@ test_that("fit_pulse_population() produces reasonable parameter estimates", {
     burnin = 2500,
     verbose = FALSE
   )
-  
+
   # Check posterior means are reasonably close to true values
   # (allowing wide tolerance given short MCMC run)
   pop_means <- colMeans(fit$population_chain)

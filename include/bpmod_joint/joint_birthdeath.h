@@ -258,11 +258,21 @@ inline void JointBirthDeathProcess::add_new_response_pulse(
   double new_t_sd_mass  = response_patient->estimates.mass_sd / sqrt(new_tvarscale_mass);
   double new_t_sd_width = response_patient->estimates.width_sd / sqrt(new_tvarscale_width);
 
-  while (new_mass < 0) {
-    new_mass = Rf_rnorm(response_patient->estimates.mass_mean, new_t_sd_mass);
-  }
-  while (new_width < 0) {
-    new_width = Rf_rnorm(response_patient->estimates.width_mean, new_t_sd_width);
+  if (response_patient->lognormal_pulses) {
+    // Log-normal parameterization (papers): log(theta) ~ N(mu, sigma^2/kappa).
+    // mass_mean/width_mean are the means of the LOG values; draw on the log scale
+    // and exponentiate. Positivity is automatic, so no reject loop is needed.
+    new_mass  = exp(Rf_rnorm(response_patient->estimates.mass_mean, new_t_sd_mass));
+    new_width = exp(Rf_rnorm(response_patient->estimates.width_mean, new_t_sd_width));
+  } else {
+    // Natural-scale truncated-normal parameterization (research option): reject
+    // draws until positive.
+    while (new_mass < 0) {
+      new_mass = Rf_rnorm(response_patient->estimates.mass_mean, new_t_sd_mass);
+    }
+    while (new_width < 0) {
+      new_width = Rf_rnorm(response_patient->estimates.width_mean, new_t_sd_width);
+    }
   }
 
   // Calculate lambda for this pulse from driver pulses

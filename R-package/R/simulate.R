@@ -14,10 +14,16 @@
 #' @param ipi_mean Mean number of sampling units between pulses (mean inter-pulse interval).
 #' @param ipi_var Variance of gamma for drawing interpulse interval
 #' @param ipi_min Minimum number of units between pulses
-#' @param mass_mean Mean pulse mass
-#' @param mass_sd Standard deviation of pulse mass
-#' @param width_mean Mean pulse width (in minutes)
-#' @param width_sd Standard deviation of pulse width (in minutes)
+#' @param mass_mean Mean pulse mass. If \code{NULL} (default) it resolves to the
+#'   parameterization-appropriate default: natural-scale \code{3.5} under
+#'   \code{pulse_distribution = "truncnorm"} or LOG-scale \code{1.2} under
+#'   \code{"lognormal"}.
+#' @param mass_sd Standard deviation of pulse mass. If \code{NULL} (default),
+#'   resolves to \code{1.6} (truncnorm) or LOG-scale \code{0.5} (lognormal).
+#' @param width_mean Mean pulse width. If \code{NULL} (default), resolves to
+#'   natural-scale \code{35} (truncnorm) or LOG-scale \code{3.0} (lognormal).
+#' @param width_sd Standard deviation of pulse width. If \code{NULL} (default),
+#'   resolves to \code{5} (truncnorm) or LOG-scale \code{0.7} (lognormal).
 #' @param halflife_mean Mean of half-life (in minutes)
 #' @param halflife_var Variance of half-life (in minutes)
 #' @param baseline_mean Mean of baseline
@@ -28,6 +34,19 @@
 #' @param constant_baseline To use a constant (specified) baseline, set this to
 #'   a constant [0,inf). Mean and variance of baseline are not used if this is
 #'   non-null.
+#' @param pulse_distribution Character, one of \code{"truncnorm"} (default) or
+#'   \code{"lognormal"}, selecting the data-generating distribution for the
+#'   per-pulse mass and width random effects. \code{"truncnorm"} keeps the legacy
+#'   natural-scale truncated Student-t mixture (a Gaussian/gamma scale mixture
+#'   with rejection below the physical floors), in which \code{mass_mean},
+#'   \code{mass_sd}, \code{width_mean} and \code{width_sd} are natural-scale
+#'   parameters. \code{"lognormal"} draws \code{mass = exp(rnorm(1, mass_mean,
+#'   mass_sd))} and \code{width = exp(rnorm(1, width_mean, width_sd))} (Gaussian
+#'   on the log scale, no t-scale mixture and no truncation), so \code{mass_mean},
+#'   \code{mass_sd}, \code{width_mean} and \code{width_sd} are interpreted as
+#'   LOG-scale parameters. Use \code{"lognormal"} to generate data consistent
+#'   with the papers-default (\code{pulse_distribution = "lognormal"}) fit
+#'   produced by \code{\link{pulse_spec}} / \code{\link{population_spec}}.
 #' @return A object of class \code{pulse_sim} containing time-series dataset
 #'   and dataset of characteristics of each pulse
 #' @seealso print.pulse_sim, plot.pulse_sim
@@ -43,16 +62,36 @@ simulate_pulse <- function(num_obs           = 144,
                            ipi_mean          = 12,
                            ipi_var           = 40,
                            ipi_min           = 4,
-                           mass_mean         = 3.5,
-                           mass_sd           = 1.6,
-                           width_mean        = 35,
-                           width_sd          = 5,
+                           mass_mean         = NULL,
+                           mass_sd           = NULL,
+                           width_mean        = NULL,
+                           width_sd          = NULL,
                            halflife_mean     = NULL,
                            halflife_var      = NULL,
                            baseline_mean     = NULL,
                            baseline_var      = NULL,
                            constant_halflife = 45,
-                           constant_baseline = 2.6) {
+                           constant_baseline = 2.6,
+                           pulse_distribution = c("truncnorm", "lognormal")) {
+
+  pulse_distribution <- match.arg(pulse_distribution)
+
+  # Conditional defaults for the pulse mass/width location-scale parameters.
+  # Under "truncnorm" these are natural-scale (legacy defaults, byte-for-byte);
+  # under "lognormal" they are LOG-scale, so exp() of them yields sane natural
+  # widths/masses instead of exp(rnorm(35, 5)) ~ 1e15. A user-supplied value
+  # always wins. Mirrors the NULL-sentinel pattern in pulse_spec().
+  if (pulse_distribution == "lognormal") {
+    if (is.null(mass_mean))  mass_mean  <- 1.2
+    if (is.null(mass_sd))    mass_sd    <- 0.5
+    if (is.null(width_mean)) width_mean <- 3.0
+    if (is.null(width_sd))   width_sd   <- 0.7
+  } else {
+    if (is.null(mass_mean))  mass_mean  <- 3.5
+    if (is.null(mass_sd))    mass_sd    <- 1.6
+    if (is.null(width_mean)) width_mean <- 35
+    if (is.null(width_sd))   width_sd   <- 5
+  }
 
   # Add default args to function call
   args      <- formals(sys.function(sys.parent(1)))
@@ -126,17 +165,23 @@ simulate_pulse <- function(num_obs           = 144,
   ytmp        <- rep(0, length(taxis))  # hormone concentration
 
   for (i in 1:np) {
-    # Log-normal 
-    #A[i]   <- exp(stats::rnorm(1, mass_mean, mass_sd))
-    #s2p[i] <- exp(stats::rnorm(1, width_mean, width_sd))
-
-    # Truncated T (via gamma normal mixture)
-    mass_kappa[i]  <- stats::rgamma(1, shape = 2, rate = 2)
-    width_kappa[i] <- stats::rgamma(1, shape = 2, rate = 2)
-    tvar  <- mass_sd^2  / mass_kappa[i]
-    t2var <- width_sd^2 / width_kappa[i]
-    while (A[i] < 0.25)   A[i]   <- stats::rnorm(1, mass_mean, sqrt(tvar))
-    while (s2p[i] < 0.5)  s2p[i] <- stats::rnorm(1, width_mean, sqrt(t2var))
+    if (pulse_distribution == "lognormal") {
+      # Log-normal random effects (Gaussian on the log scale, no t-scale
+      # mixture, no truncation). mass_mean/mass_sd/width_mean/width_sd are
+      # LOG-scale parameters, matching the papers-default lognormal fit.
+      mass_kappa[i]  <- 1
+      width_kappa[i] <- 1
+      A[i]   <- exp(stats::rnorm(1, mass_mean, mass_sd))
+      s2p[i] <- exp(stats::rnorm(1, width_mean, width_sd))
+    } else {
+      # Truncated T (via gamma normal mixture)
+      mass_kappa[i]  <- stats::rgamma(1, shape = 2, rate = 2)
+      width_kappa[i] <- stats::rgamma(1, shape = 2, rate = 2)
+      tvar  <- mass_sd^2  / mass_kappa[i]
+      t2var <- width_sd^2 / width_kappa[i]
+      while (A[i] < 0.25)   A[i]   <- stats::rnorm(1, mass_mean, sqrt(tvar))
+      while (s2p[i] < 0.5)  s2p[i] <- stats::rnorm(1, width_mean, sqrt(t2var))
+    }
   }
 
   #---------------------------------------
@@ -420,16 +465,27 @@ simulate_pulse_joint <- function(rho                  = 0.5,
 #' @param num_obs Number of observations per subject. Window duration is
 #'   \code{num_obs * interval}.
 #' @param interval Time in minutes between observations.
-#' @param mass_mean,width_mean Population mean pulse mass and width.
+#' @param mass_mean,width_mean Population mean pulse mass and width. If
+#'   \code{NULL} (default) they resolve to natural-scale \code{3.5}/\code{35}
+#'   under \code{pulse_distribution = "truncnorm"} or LOG-scale
+#'   \code{1.2}/\code{3.0} under \code{"lognormal"}.
 #' @param baseline,halflife Population mean baseline and half-life. When
 #'   \code{halflife_sd > 0}, \code{halflife} must exceed 8 (the model's minimum
 #'   half-life), otherwise the subject-level rejection sampler cannot converge.
 #' @param mass_sd,width_sd Pulse-to-pulse SD of mass and width (within subject).
+#'   If \code{NULL} (default) they resolve to \code{1.0}/\code{5} (truncnorm) or
+#'   LOG-scale \code{0.5}/\code{0.7} (lognormal).
 #' @param ipi_mean,ipi_var Inter-pulse interval mean and variance.
 #' @param mass_mean_sd,width_mean_sd Subject-to-subject SD of the mean mass and
 #'   mean width (0 = identical subjects).
 #' @param baseline_sd,halflife_sd Subject-to-subject SD of baseline and
 #'   half-life (0 = identical subjects).
+#' @param pulse_distribution Character, one of \code{"truncnorm"} (default) or
+#'   \code{"lognormal"}, passed to \code{\link{simulate_pulse}} for each subject
+#'   to choose the per-pulse mass/width data-generating distribution. Under
+#'   \code{"lognormal"} the \code{mass_sd}/\code{width_sd} (and the subject-mean
+#'   \code{mass_mean}/\code{width_mean}) are LOG-scale parameters, matching the
+#'   papers-default population fit.
 #' @param seed Optional RNG seed for reproducibility.
 #' @return An object of class \code{population_sim}: a list with \code{data} (a
 #'   list of per-subject data frames with \code{time} and \code{concentration},
@@ -446,19 +502,39 @@ simulate_pulse_joint <- function(rho                  = 0.5,
 simulate_pulse_population <- function(n_subjects   = 5,
                                       num_obs       = 144,
                                       interval      = 10,
-                                      mass_mean     = 3.5,
-                                      width_mean    = 35,
+                                      mass_mean     = NULL,
+                                      width_mean    = NULL,
                                       baseline      = 2.6,
                                       halflife      = 45,
-                                      mass_sd       = 1.0,
-                                      width_sd      = 5,
+                                      mass_sd       = NULL,
+                                      width_sd      = NULL,
                                       ipi_mean      = 12,
                                       ipi_var       = 40,
                                       mass_mean_sd  = 0,
                                       width_mean_sd = 0,
                                       baseline_sd   = 0,
                                       halflife_sd   = 0,
+                                      pulse_distribution = c("truncnorm",
+                                                             "lognormal"),
                                       seed          = NULL) {
+
+  pulse_distribution <- match.arg(pulse_distribution)
+
+  # Conditional defaults for the pulse mass/width mean and SD, forwarded to
+  # simulate_pulse() for each subject. Natural-scale under "truncnorm" (legacy),
+  # LOG-scale under "lognormal" -- otherwise exp() of a natural-scale width
+  # produces absurd values. A user-supplied value always wins.
+  if (pulse_distribution == "lognormal") {
+    if (is.null(mass_mean))  mass_mean  <- 1.2
+    if (is.null(mass_sd))    mass_sd    <- 0.5
+    if (is.null(width_mean)) width_mean <- 3.0
+    if (is.null(width_sd))   width_sd   <- 0.7
+  } else {
+    if (is.null(mass_mean))  mass_mean  <- 3.5
+    if (is.null(mass_sd))    mass_sd    <- 1.0
+    if (is.null(width_mean)) width_mean <- 35
+    if (is.null(width_sd))   width_sd   <- 5
+  }
 
   if (!is.null(seed)) set.seed(seed)
   stopifnot(n_subjects >= 1)
@@ -485,7 +561,8 @@ simulate_pulse_population <- function(n_subjects   = 5,
                         mass_mean = subj_mass, mass_sd = mass_sd,
                         width_mean = subj_width, width_sd = width_sd,
                         constant_baseline = subj_baseline,
-                        constant_halflife = subj_halflife)
+                        constant_halflife = subj_halflife,
+                        pulse_distribution = pulse_distribution)
     data.frame(time = s$data$time, concentration = s$data$concentration)
   })
 

@@ -206,11 +206,21 @@ inline void BirthDeathProcess::add_new_pulse(Patient *patient, double position) 
   double new_t_sd_mass  = patient->estimates.mass_sd / sqrt(new_tvarscale_mass);
   double new_t_sd_width = patient->estimates.width_sd / sqrt(new_tvarscale_width);
 
-  while (new_mass < 0) {
-    new_mass = Rf_rnorm(patient->estimates.mass_mean, new_t_sd_mass);
-  }
-  while (new_width < 0) {
-    new_width = Rf_rnorm(patient->estimates.width_mean, new_t_sd_width);
+  if (patient->lognormal_pulses) {
+    // Log-normal parameterization (papers): log(theta) ~ N(mu, sigma^2/kappa).
+    // mass_mean/width_mean are the means of the LOG values; draw on the log scale
+    // and exponentiate. Positivity is automatic, so no reject loop is needed.
+    new_mass  = exp(Rf_rnorm(patient->estimates.mass_mean, new_t_sd_mass));
+    new_width = exp(Rf_rnorm(patient->estimates.width_mean, new_t_sd_width));
+  } else {
+    // Natural-scale truncated-normal parameterization (research option): reject
+    // draws until positive.
+    while (new_mass < 0) {
+      new_mass = Rf_rnorm(patient->estimates.mass_mean, new_t_sd_mass);
+    }
+    while (new_width < 0) {
+      new_width = Rf_rnorm(patient->estimates.width_mean, new_t_sd_width);
+    }
   }
 
   // Create new pulse and insert

@@ -37,6 +37,13 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
                           double univariate_pv_target_ratio)
 {
 
+  // RNGScope for the standalone RInside build (bin/tests / main), which calls
+  // this function directly with no Rcpp .Call wrapper to open one. On the R
+  // package path RcppExports.cpp already opens an outer RNGScope, so this inner
+  // one is a reference-counted no-op there; it is kept solely for the standalone
+  // build's set.seed() reproducibility.
+  Rcpp::RNGScope rng_scope;
+
   // every nth iteration for printing verbose screen output
   int verbose_iter = 5000;
 
@@ -113,6 +120,33 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
       student_t_pulses = (Rf_asReal(inpriors["student_t_pulses"]) != 0.0);
     }
     pat.gaussian_random_effects = !student_t_pulses;
+
+    // Pulse random-effects scale: log-normal (papers' default) or natural-scale
+    // truncated-normal (research option). Carried as an optional element of the
+    // priors list so the exported signature is unchanged; older specs without it
+    // default to the natural-scale behavior (the C++ default).
+    bool lognormal_pulses = false;
+    if (inpriors.containsElementNamed("lognormal_pulses")) {
+      lognormal_pulses = (Rf_asReal(inpriors["lognormal_pulses"]) != 0.0);
+    }
+    pat.lognormal_pulses = lognormal_pulses;
+
+    // Pulse-to-pulse SD prior: Uniform(0, max) (papers' default) or half-Cauchy
+    // (research option). Carried as optional elements of the priors list so the
+    // exported signature is unchanged; older specs without them default to the
+    // half-Cauchy behavior (the C++ default). The Uniform upper bounds
+    // mass_sd_max / width_sd_max are only consulted when uniform_sd_prior is true.
+    bool uniform_sd_prior = false;
+    if (inpriors.containsElementNamed("uniform_sd_prior")) {
+      uniform_sd_prior = (Rf_asReal(inpriors["uniform_sd_prior"]) != 0.0);
+    }
+    pat.uniform_sd_prior = uniform_sd_prior;
+    if (inpriors.containsElementNamed("mass_sd_max")) {
+      pat.priors.mass_sd_max = Rf_asReal(inpriors["mass_sd_max"]);
+    }
+    if (inpriors.containsElementNamed("width_sd_max")) {
+      pat.priors.width_sd_max = Rf_asReal(inpriors["width_sd_max"]);
+    }
 //  }
 
   //double like = patient->likelihood(false);
@@ -130,10 +164,10 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
   // Modified Metropolis Hastings for fixed effects (mean mass & mean width)
   SS_DrawFixedEffects draw_fixeff_mass(proposalvars["mass_mean"], adj_iter,
                                        adj_max, univ_target, false, verbose,
-                                       verbose_iter);
+                                       verbose_iter, pat.lognormal_pulses);
   SS_DrawFixedEffects draw_fixeff_width(proposalvars["width_mean"], adj_iter,
                                         adj_max, univ_target, true, verbose,
-                                        verbose_iter);
+                                        verbose_iter, pat.lognormal_pulses);
 
   // Modified Metropolis Hastings for the standard deviation of the random
   // effects (sd mass & sd width) (patient level estimate)

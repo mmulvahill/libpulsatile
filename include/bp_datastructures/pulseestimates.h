@@ -134,8 +134,21 @@ class PulseEstimates {
       //    mass * x is a vector, as is exp(), so use element-wise
       //    multiplication via %
       mean_contribution = (mass * x) % exp(y - data_time * decay_rate);
-      // Truncate <0 = 0
-      mean_contribution.for_each( [](arma::vec::elem_type& val) { val = std::max(val, 0.); } );
+      // Truncate <0 = 0, and sanitize non-finite entries to 0.
+      //
+      // A pulse's contribution is a bounded, non-negative secretion value. For an
+      // extreme (near-degenerate) pulse -- e.g. a width so large the random-walk
+      // sampler has let it diffuse far past the observation window -- the factors
+      // above can overflow: pnorm(x) underflows to 0 while exp(y - t*decay) grows
+      // to +Inf, giving 0 * Inf = NaN (or a spurious +Inf). Physically the true
+      // contribution of such a pulse at any finite time is ~0, so any non-finite
+      // entry is a floating-point artifact and is clamped to 0. Without this a
+      // single pathological width poisons mean_concentration -> the error-variance
+      // Gibbs draw's sum-of-squares -> errorsq = NaN, which then breaks downstream
+      // coda diagnostics (na.fail). Finite, in-range pulses are unaffected.
+      mean_contribution.for_each( [](arma::vec::elem_type& val) {
+        val = (std::isfinite(val) && val > 0.) ? val : 0.;
+      } );
 
     }
 

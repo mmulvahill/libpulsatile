@@ -75,7 +75,8 @@ struct PopulationSamplers {
                      double univ_target,
                      bool verbose,
                      int verbose_iter,
-                     std::string loc_prior) {
+                     std::string loc_prior,
+                     bool lognormal = false) {
 
     // Subject-level samplers
     arma::vec bhl_pv = { Rcpp::as<double>(proposalvars["baseline"]),
@@ -83,13 +84,17 @@ struct PopulationSamplers {
     draw_blhl = new SS_DrawBaselineHalflife(bhl_pv, adj_iter, adj_max,
                                             biv_target, verbose, verbose_iter);
 
+    // Thread the population's log-normal flag into the per-subject mean draws so
+    // the subject mass/width MEAN full conditionals use log-scale residuals under
+    // the papers' parameterization (the MMH container type here is `bool`, so the
+    // flag cannot be read from the Patient and must be passed at construction).
     draw_fixeff_mass = new SS_DrawFixedEffects(
       Rcpp::as<double>(proposalvars["mass_mean"]),
-      adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
+      adj_iter, adj_max, univ_target, false, verbose, verbose_iter, lognormal);
 
     draw_fixeff_width = new SS_DrawFixedEffects(
       Rcpp::as<double>(proposalvars["width_mean"]),
-      adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
+      adj_iter, adj_max, univ_target, true, verbose, verbose_iter, lognormal);
 
     // Pulse-level samplers
     if (loc_prior == "strauss") {
@@ -190,6 +195,16 @@ inline void population_mcmc_iteration(Population *population,
     // We'll need to temporarily set them on the subject for compatibility
     subject.estimates.mass_sd  = population->estimates.mass_sd;
     subject.estimates.width_sd = population->estimates.width_sd;
+
+    // Propagate the pulse random-effects parameterization flags from the
+    // population onto each subject every iteration. SS_DrawRandomEffects and
+    // SS_DrawTVarScale read subject.lognormal_pulses DIRECTLY, and the birth-death
+    // process reads it to initialize new pulses, so the flag must be live on the
+    // subject on every iteration (belt-and-suspenders against any per-iteration
+    // subject rebuild). uniform_sd_prior is carried for parity; the population SD
+    // draws are Uniform-only regardless.
+    subject.lognormal_pulses = population->priors.lognormal_pulses;
+    subject.uniform_sd_prior = population->priors.uniform_sd_prior;
 
     // Propagate the pulse-count (birth-rate) and Strauss priors from the
     // population to the subject. The per-subject PatientPriors are built with
