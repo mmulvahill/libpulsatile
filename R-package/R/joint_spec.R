@@ -26,8 +26,8 @@
 #' @param prior_driver_halflife_var Prior variance for driver half-life
 #' @param prior_driver_error_alpha Gamma shape parameter for driver error
 #' @param prior_driver_error_beta Gamma rate parameter for driver error
-#' @param prior_driver_sd_mass Upper bound (uniform prior) for driver pulse-to-pulse SD of mass
-#' @param prior_driver_sd_width Upper bound (uniform prior) for driver pulse-to-pulse SD of width
+#' @param prior_driver_sd_mass Scale parameter of the half-Cauchy prior on the driver pulse-to-pulse SD of mass
+#' @param prior_driver_sd_width Scale parameter of the half-Cauchy prior on the driver pulse-to-pulse SD of width
 #' @param prior_driver_pulse_count Mean of Poisson prior on driver pulse count
 #' @param prior_driver_location_gamma Strauss repulsion parameter for driver (0-1, 0=no repulsion)
 #' @param prior_driver_location_range Strauss interaction range for driver (in time units)
@@ -43,8 +43,8 @@
 #' @param prior_response_halflife_var Prior variance for response half-life
 #' @param prior_response_error_alpha Gamma shape parameter for response error
 #' @param prior_response_error_beta Gamma rate parameter for response error
-#' @param prior_response_sd_mass Upper bound (uniform prior) for response pulse-to-pulse SD of mass
-#' @param prior_response_sd_width Upper bound (uniform prior) for response pulse-to-pulse SD of width
+#' @param prior_response_sd_mass Scale parameter of the half-Cauchy prior on the response pulse-to-pulse SD of mass
+#' @param prior_response_sd_width Scale parameter of the half-Cauchy prior on the response pulse-to-pulse SD of width
 #' @param prior_response_pulse_count Mean of Poisson prior on response pulse count
 #' @param prior_response_location_gamma Strauss repulsion parameter for response (0-1, 0=no repulsion)
 #' @param prior_response_location_range Strauss interaction range for response (in time units)

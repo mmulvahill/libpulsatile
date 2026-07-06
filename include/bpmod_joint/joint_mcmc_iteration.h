@@ -61,6 +61,8 @@ struct JointSamplers {
   SS_DrawLocations *driver_draw_locations;
   SS_DrawRandomEffects *driver_draw_masses;
   SS_DrawRandomEffects *driver_draw_widths;
+  SS_DrawSDRandomEffects *driver_draw_sd_mass;
+  SS_DrawSDRandomEffects *driver_draw_sd_width;
   SS_DrawTVarScale *driver_draw_tvarscale_mass;
   SS_DrawTVarScale *driver_draw_tvarscale_width;
   SS_DrawError driver_draw_error;
@@ -72,6 +74,8 @@ struct JointSamplers {
   SS_DrawLocations *response_draw_locations;
   SS_DrawRandomEffects *response_draw_masses;
   SS_DrawRandomEffects *response_draw_widths;
+  SS_DrawSDRandomEffects *response_draw_sd_mass;
+  SS_DrawSDRandomEffects *response_draw_sd_width;
   SS_DrawTVarScale *response_draw_tvarscale_mass;
   SS_DrawTVarScale *response_draw_tvarscale_width;
   SS_DrawError response_draw_error;
@@ -135,6 +139,14 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
     Rcpp::as<double>(proposalvars["driver_pulse_width"]),
     adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
 
+  driver_draw_sd_mass = new SS_DrawSDRandomEffects(
+    Rcpp::as<double>(proposalvars["driver_mass_sd"]),
+    adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
+
+  driver_draw_sd_width = new SS_DrawSDRandomEffects(
+    Rcpp::as<double>(proposalvars["driver_width_sd"]),
+    adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
+
   driver_draw_tvarscale_mass = new SS_DrawTVarScale(
     Rcpp::as<double>(proposalvars["driver_sdscale_pulse_mass"]),
     adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
@@ -173,6 +185,14 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
     Rcpp::as<double>(proposalvars["response_pulse_width"]),
     adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
 
+  response_draw_sd_mass = new SS_DrawSDRandomEffects(
+    Rcpp::as<double>(proposalvars["response_mass_sd"]),
+    adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
+
+  response_draw_sd_width = new SS_DrawSDRandomEffects(
+    Rcpp::as<double>(proposalvars["response_width_sd"]),
+    adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
+
   response_draw_tvarscale_mass = new SS_DrawTVarScale(
     Rcpp::as<double>(proposalvars["response_sdscale_pulse_mass"]),
     adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
@@ -200,6 +220,8 @@ inline JointSamplers::~JointSamplers() {
   delete driver_draw_locations;
   delete driver_draw_masses;
   delete driver_draw_widths;
+  delete driver_draw_sd_mass;
+  delete driver_draw_sd_width;
   delete driver_draw_tvarscale_mass;
   delete driver_draw_tvarscale_width;
 
@@ -209,6 +231,8 @@ inline JointSamplers::~JointSamplers() {
   delete response_draw_locations;
   delete response_draw_masses;
   delete response_draw_widths;
+  delete response_draw_sd_mass;
+  delete response_draw_sd_width;
   delete response_draw_tvarscale_mass;
   delete response_draw_tvarscale_width;
 
@@ -246,6 +270,16 @@ inline void joint_mcmc_iteration(Patient *driver_patient,
                                             &driver_patient->estimates.width_mean,
                                             iteration);
 
+  // Driver pulse-to-pulse SDs of mass and width (patient-level). Previously the
+  // joint model never sampled these, leaving mass_sd/width_sd frozen at their
+  // starting values for the whole chain.
+  samplers.driver_draw_sd_mass->sample(driver_patient,
+                                       &driver_patient->estimates.mass_sd,
+                                       driver_patient, iteration);
+  samplers.driver_draw_sd_width->sample(driver_patient,
+                                        &driver_patient->estimates.width_sd,
+                                        driver_patient, iteration);
+
   // Driver pulse-level parameters
   samplers.driver_draw_locations->sample_pulses(driver_patient, iteration);
   samplers.driver_draw_masses->sample_pulses(driver_patient, iteration);
@@ -278,6 +312,14 @@ inline void joint_mcmc_iteration(Patient *driver_patient,
   samplers.response_draw_fixeff_width->sample(response_patient,
                                               &response_patient->estimates.width_mean,
                                               iteration);
+
+  // Response pulse-to-pulse SDs of mass and width (patient-level).
+  samplers.response_draw_sd_mass->sample(response_patient,
+                                         &response_patient->estimates.mass_sd,
+                                         response_patient, iteration);
+  samplers.response_draw_sd_width->sample(response_patient,
+                                          &response_patient->estimates.width_sd,
+                                          response_patient, iteration);
 
   // Response pulse-level parameters
   samplers.response_draw_locations->sample_pulses(response_patient, iteration);

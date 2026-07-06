@@ -108,9 +108,9 @@ specification of "prior_mean_pulse_count", "prior_location_gamma", and
 
 \item{prior_driver_error_beta}{Gamma rate parameter for driver error}
 
-\item{prior_driver_sd_mass}{Upper bound (uniform prior) for driver pulse-to-pulse SD of mass}
+\item{prior_driver_sd_mass}{Scale parameter of the half-Cauchy prior on the driver pulse-to-pulse SD of mass}
 
-\item{prior_driver_sd_width}{Upper bound (uniform prior) for driver pulse-to-pulse SD of width}
+\item{prior_driver_sd_width}{Scale parameter of the half-Cauchy prior on the driver pulse-to-pulse SD of width}
 
 \item{prior_driver_pulse_count}{Mean of Poisson prior on driver pulse count}
 
@@ -138,9 +138,9 @@ specification of "prior_mean_pulse_count", "prior_location_gamma", and
 
 \item{prior_response_error_beta}{Gamma rate parameter for response error}
 
-\item{prior_response_sd_mass}{Upper bound (uniform prior) for response pulse-to-pulse SD of mass}
+\item{prior_response_sd_mass}{Scale parameter of the half-Cauchy prior on the response pulse-to-pulse SD of mass}
 
-\item{prior_response_sd_width}{Upper bound (uniform prior) for response pulse-to-pulse SD of width}
+\item{prior_response_sd_width}{Scale parameter of the half-Cauchy prior on the response pulse-to-pulse SD of width}
 
 \item{prior_response_pulse_count}{Mean of Poisson prior on response pulse count}
 
