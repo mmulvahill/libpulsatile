@@ -99,14 +99,29 @@ class SS_DrawRandomEffects :
 
         // Compute the log of the ratio of the priors. The per-pulse t-scale
         // kappa weights the quadratic deviation (prior variance is sigma^2/kappa).
-        prior_old    = (*pulse).*randomeffect_ - patient_mean;
-        prior_old   *= 0.5 * prior_old;
-        prior_new    = proposal - patient_mean;
-        prior_new   *= 0.5 * prior_new;
-        prior_ratio  = prior_old - prior_new;
-        prior_ratio *= kappa;
-        prior_ratio /= patient_sd;
-        prior_ratio /= patient_sd;
+        double current_re = (*pulse).*randomeffect_;
+        if (patient->lognormal_pulses) {
+          // Log-normal parameterization (papers): log(theta) ~ N(mu, sigma^2/kappa).
+          // patient_mean/patient_sd are the mean/SD of the LOG random effect. The
+          // MH proposal is a symmetric random walk on the natural-scale value, so
+          // the target density of theta carries the 1/theta Jacobian of the
+          // log-normal; its log-ratio contributes (log(theta) - log(theta')).
+          // Both current_re and proposal are > 0 (parameter_support enforces it),
+          // so the logs are well defined. No truncation constant is needed.
+          double logold = log(current_re);
+          double lognew = log(proposal);
+          prior_old   = 0.5 * (logold - patient_mean) * (logold - patient_mean);
+          prior_new   = 0.5 * (lognew - patient_mean) * (lognew - patient_mean);
+          prior_ratio = kappa * (prior_old - prior_new) / (patient_sd * patient_sd);
+          prior_ratio += (logold - lognew);  // log-normal Jacobian
+        } else {
+          // Natural-scale truncated-normal parameterization (research option).
+          prior_old   = current_re - patient_mean;
+          prior_old  *= 0.5 * prior_old;
+          prior_new   = proposal - patient_mean;
+          prior_new  *= 0.5 * prior_new;
+          prior_ratio = kappa * (prior_old - prior_new) / (patient_sd * patient_sd);
+        }
 
         // Save the current value of mass/width and set to proposed value
         //std::cout << "\n\nInitial random effect value: " << (*pulse).*randomeffect_ << std::endl;

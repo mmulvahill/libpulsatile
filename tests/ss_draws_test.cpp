@@ -142,3 +142,70 @@ TEST_CASE( "random-effects posterior_function weights the prior by the t-scale k
     REQUIRE( r2 != Approx(r1) );
   }
 }
+
+
+//
+// SS_DrawRandomEffects::posterior_function -- log-normal parameterization
+//
+// Under the papers' log-normal model, log(theta_k) ~ N(mu, sigma^2/kappa_k),
+// where mu/sigma are the mean/SD of the LOG random effect. The pulse stores the
+// natural-scale value, and the symmetric random-walk proposal is on that natural
+// value, so the target of theta carries the log-normal's 1/theta Jacobian; the
+// MH log-ratio therefore adds (log(theta) - log(theta')) to the kappa-weighted
+// quadratic term. This test checks the full closed form exactly (the likelihood
+// delta is computed the same way the sampler does, so what is verified is the
+// prior + Jacobian ratio).
+//
+TEST_CASE( "random-effects posterior_function: log-normal prior + Jacobian",
+           "[draw_][randomeffects][lognormal]" ) {
+
+  DataStructuresUtils utils;
+  Patient pat = utils.create_new_test_patient_obj();
+  pat.lognormal_pulses = true;   // papers' parameterization
+
+  REQUIRE( pat.get_pulsecount() >= 1 );
+  PulseEstimates & pulse = pat.pulses.front();
+
+  const double mu     = 3.7;   // mean of LOG width (e.g. log(~40))
+  const double sigma  = 0.6;   // SD of LOG width
+  const double theta  = 55.0;  // current width (natural scale, > 0)
+  const double prop   = 30.0;  // proposed width (natural scale, > 0)
+  const double kappa  = 1.3;   // per-pulse t-scale
+
+  pat.estimates.width_mean = mu;
+  pat.estimates.width_sd   = sigma;
+  pulse.width              = theta;
+  pulse.tvarscale_width    = kappa;
+
+  // for_width = true -> sample the pulse width random effect
+  SS_DrawRandomEffects sampler(1.0, 500, 25000, 0.35, true, false, 5000);
+  double got = sampler.posterior_function(&pulse, prop, &pat);
+
+  // Closed-form prior + Jacobian log-ratio.
+  const double logold = std::log(theta);
+  const double lognew = std::log(prop);
+  const double prior_ratio =
+      kappa * (0.5*(logold-mu)*(logold-mu) - 0.5*(lognew-mu)*(lognew-mu))
+              / (sigma*sigma)
+      + (logold - lognew);
+
+  // Likelihood delta, evaluated exactly as the sampler does.
+  const double clike = pat.likelihood(false);
+  pulse.width = prop;
+  const double plike = pat.likelihood(false);
+  pulse.width = theta;  // reset
+
+  const double expected = prior_ratio + (plike - clike);
+
+  SECTION( "matches the analytic log-normal log-ratio" ) {
+    REQUIRE( got == Approx(expected) );
+  }
+
+  SECTION( "differs from the natural-scale parameterization" ) {
+    // The same inputs under the natural-scale prior give a different ratio,
+    // confirming the lognormal branch is actually taken.
+    pat.lognormal_pulses = false;
+    double got_natural = sampler.posterior_function(&pulse, prop, &pat);
+    REQUIRE( got != Approx(got_natural) );
+  }
+}

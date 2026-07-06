@@ -55,6 +55,19 @@ struct Patient {
   // reads it to skip the t-scale draw.
   bool gaussian_random_effects = false;
 
+  // Scale of the pulse mass/width random effects. When true (the published
+  // Mulvahill-thesis / Horton parameterization), the random effect is modeled on
+  // the LOG scale: log(mass), log(width) ~ N(mean, sd^2 / kappa), so mass_mean /
+  // width_mean are means of the log values, mass_sd / width_sd are SDs of the log
+  // values, positivity is automatic (no truncation at 0), and no truncation
+  // normalizing constant appears. When false (the current natural-scale research
+  // parameterization), the random effect is a truncated normal on the natural
+  // scale. The pulse `mass`/`width` members always store the natural-scale value
+  // used by the secretion function; only the prior/draw geometry changes.
+  // C++ default is false to keep existing standalone behavior/tests stable; the R
+  // model specs default this to true (log-normal) to match the papers.
+  bool lognormal_pulses = false;
+
   //
   // For single-subject model
   //
