@@ -106,9 +106,11 @@ Rcpp::List singlesubject_(Rcpp::NumericVector concentration,
     // kappa) or Gaussian (kappa fixed at 1). Carried as an optional element of
     // the priors list so the exported signature is unchanged; older specs
     // without it default to the Student-t behavior.
+    // Read as a real so a logical (TRUE/FALSE) or a numeric (1/0) both work,
+    // regardless of how the R wrapper coerces the priors list.
     bool student_t_pulses = true;
     if (inpriors.containsElementNamed("student_t_pulses")) {
-      student_t_pulses = Rcpp::as<bool>(inpriors["student_t_pulses"]);
+      student_t_pulses = (Rf_asReal(inpriors["student_t_pulses"]) != 0.0);
     }
     pat.gaussian_random_effects = !student_t_pulses;
 //  }

@@ -284,8 +284,11 @@ inline void joint_mcmc_iteration(Patient *driver_patient,
   samplers.driver_draw_locations->sample_pulses(driver_patient, iteration);
   samplers.driver_draw_masses->sample_pulses(driver_patient, iteration);
   samplers.driver_draw_widths->sample_pulses(driver_patient, iteration);
-  samplers.driver_draw_tvarscale_mass->sample_pulses(driver_patient, iteration);
-  samplers.driver_draw_tvarscale_width->sample_pulses(driver_patient, iteration);
+  // Skip the t-scale (kappa) draws under Gaussian random effects.
+  if (!driver_patient->gaussian_random_effects) {
+    samplers.driver_draw_tvarscale_mass->sample_pulses(driver_patient, iteration);
+    samplers.driver_draw_tvarscale_width->sample_pulses(driver_patient, iteration);
+  }
 
   // Driver error variance
   samplers.driver_draw_error.sample(driver_patient);
@@ -325,8 +328,11 @@ inline void joint_mcmc_iteration(Patient *driver_patient,
   samplers.response_draw_locations->sample_pulses(response_patient, iteration);
   samplers.response_draw_masses->sample_pulses(response_patient, iteration);
   samplers.response_draw_widths->sample_pulses(response_patient, iteration);
-  samplers.response_draw_tvarscale_mass->sample_pulses(response_patient, iteration);
-  samplers.response_draw_tvarscale_width->sample_pulses(response_patient, iteration);
+  // Skip the t-scale (kappa) draws under Gaussian random effects.
+  if (!response_patient->gaussian_random_effects) {
+    samplers.response_draw_tvarscale_mass->sample_pulses(response_patient, iteration);
+    samplers.response_draw_tvarscale_width->sample_pulses(response_patient, iteration);
+  }
 
   // Update lambda values after response pulse locations may have changed
   // This ensures diagnostic output reflects correct lambda for each pulse position

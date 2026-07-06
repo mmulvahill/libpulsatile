@@ -54,7 +54,8 @@ population_spec(
   pv_indiv_pulse_width = 15000,
   pv_sdscale_pulse_mass = 4,
   pv_sdscale_pulse_width = 4,
-  pv_pulse_location = 65
+  pv_pulse_location = 65,
+  student_t_pulses = TRUE
 )
 }
 \arguments{
@@ -162,6 +163,15 @@ distribution for the pulse location prior.}
 \item{pv_sdscale_pulse_width}{Proposal variance for pulse width t-distribution scales}
 
 \item{pv_pulse_location}{Proposal variance for pulse locations}
+
+\item{student_t_pulses}{Logical. If \code{TRUE} (default), pulse mass and
+width random effects follow a Student-t distribution via a per-pulse
+t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
+pulse random effects. Applies to every subject. Setting this to
+\code{FALSE} removes the weak-identifiability ridge between the
+pulse-to-pulse SD and the per-pulse t-scales, which can improve mixing of
+the SD parameters (notably the SD of pulse width).}
 }
 \value{
 A list of class \code{population_spec} containing:

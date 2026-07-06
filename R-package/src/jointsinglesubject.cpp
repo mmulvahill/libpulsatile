@@ -111,6 +111,17 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     driver_startingvals["width_sd"]);
   Patient driver_patient(driver_data, driver_patient_priors, driver_estimates);
 
+  // Random-effects distribution for the driver: Student-t (default, per-pulse
+  // t-scale kappa) or Gaussian (kappa fixed at 1). Optional element of the
+  // priors list; absent -> Student-t. Read as a real so logical/numeric both work.
+  {
+    bool driver_student_t = true;
+    if (driver_priors.containsElementNamed("student_t_pulses")) {
+      driver_student_t = (Rf_asReal(driver_priors["student_t_pulses"]) != 0.0);
+    }
+    driver_patient.gaussian_random_effects = !driver_student_t;
+  }
+
   //
   // Initialize response hormone patient
   //
@@ -140,6 +151,15 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     response_startingvals["mass_sd"],
     response_startingvals["width_sd"]);
   Patient response_patient(response_data, response_patient_priors, response_estimates);
+
+  // Random-effects distribution for the response (see driver note above).
+  {
+    bool response_student_t = true;
+    if (response_priors.containsElementNamed("student_t_pulses")) {
+      response_student_t = (Rf_asReal(response_priors["student_t_pulses"]) != 0.0);
+    }
+    response_patient.gaussian_random_effects = !response_student_t;
+  }
 
   //
   // Initialize association parameters

@@ -107,6 +107,15 @@
 #' @param pv_log_rho Proposal variance for log(rho)
 #' @param pv_log_nu Proposal variance for log(nu)
 #'
+#' @param student_t_pulses Logical. If \code{TRUE} (default), pulse mass and
+#'   width random effects follow a Student-t distribution via a per-pulse
+#'   t-scale (\code{tvarscale}, kappa) scale-mixture. If \code{FALSE}, the
+#'   t-scale is fixed at 1 for every pulse and never sampled, giving Gaussian
+#'   pulse random effects. Applies to both the driver and response hormones.
+#'   Setting this to \code{FALSE} removes the weak-identifiability ridge between
+#'   the pulse-to-pulse SD and the per-pulse t-scales, which can improve mixing
+#'   of the SD parameters (notably the SD of pulse width).
+#'
 #' @return A list of class \code{joint_spec} containing:
 #'   \item{location_prior}{Type of location prior ("strauss")}
 #'   \item{driver_priors}{List of prior parameters for driver hormone}
@@ -224,12 +233,20 @@ joint_spec <- function(
 
   # Association proposal variances (on log scale)
   pv_log_rho = 0.1,
-  pv_log_nu = 0.1
+  pv_log_nu = 0.1,
+
+  # Random-effects distribution (applies to both hormones)
+  student_t_pulses = TRUE
 ) {
 
   # Input validation
   if (location_prior_type != "strauss") {
     stop("location_prior_type must be 'strauss' (only option currently supported)")
+  }
+
+  if (!is.logical(student_t_pulses) || length(student_t_pulses) != 1L ||
+      is.na(student_t_pulses)) {
+    stop("student_t_pulses must be a single logical (TRUE or FALSE)")
   }
 
   if (prior_driver_pulse_count <= 0 || prior_response_pulse_count <= 0) {
@@ -280,7 +297,8 @@ joint_spec <- function(
         error_beta = prior_driver_error_beta,
         pulse_count = prior_driver_pulse_count,
         strauss_repulsion = prior_driver_location_gamma,
-        strauss_repulsion_range = prior_driver_location_range
+        strauss_repulsion_range = prior_driver_location_range,
+        student_t_pulses = student_t_pulses
       ),
 
       # Response priors
@@ -299,7 +317,8 @@ joint_spec <- function(
         error_beta = prior_response_error_beta,
         pulse_count = prior_response_pulse_count,
         strauss_repulsion = prior_response_location_gamma,
-        strauss_repulsion_range = prior_response_location_range
+        strauss_repulsion_range = prior_response_location_range,
+        student_t_pulses = student_t_pulses
       ),
 
       # Association priors

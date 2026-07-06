@@ -68,6 +68,23 @@ test_that("joint_spec() validates input parameters", {
     joint_spec(sv_rho = -1),
     "All starting value SD, variance, and association parameters must be > 0"
   )
+
+  # student_t_pulses must be a single logical
+  expect_error(
+    joint_spec(student_t_pulses = "no"),
+    "single logical"
+  )
+})
+
+
+test_that("joint_spec() carries student_t_pulses into both hormones", {
+  spec <- joint_spec()
+  expect_true(isTRUE(spec$driver_priors$student_t_pulses))
+  expect_true(isTRUE(spec$response_priors$student_t_pulses))
+
+  spec_g <- joint_spec(student_t_pulses = FALSE)
+  expect_false(isTRUE(spec_g$driver_priors$student_t_pulses))
+  expect_false(isTRUE(spec_g$response_priors$student_t_pulses))
 })
 
 

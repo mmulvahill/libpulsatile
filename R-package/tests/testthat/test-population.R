@@ -72,6 +72,14 @@ test_that("population_spec() validates inputs correctly", {
 })
 
 
+test_that("population_spec() carries the student_t_pulses flag", {
+  expect_true(isTRUE(population_spec()$population_priors$student_t_pulses))
+  expect_false(isTRUE(
+    population_spec(student_t_pulses = FALSE)$population_priors$student_t_pulses))
+  expect_error(population_spec(student_t_pulses = "no"), "single logical")
+})
+
+
 test_that("population_spec() print method works", {
   spec <- population_spec()
   expect_output(print(spec), "Bayesian Population Model")
