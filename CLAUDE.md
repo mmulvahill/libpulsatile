@@ -179,10 +179,18 @@ This comprehensive check typically takes 2-5 minutes but saves 30+ minutes of CI
 **GitHub Actions** workflows in `.github/workflows/` run on every push and PR:
 
 ### Workflows
-- **`ci.yml`**: Build and test on Ubuntu and macOS with R 4.3.0
-  - Runs `R CMD check` (equivalent to local `devtools::check()`)
-  - Runs testthat tests (equivalent to local `devtools::test()`)
-  - Must pass with 0 errors, 0 warnings for PR approval
+- **`ci-hosted.yml`**: Build and test on GitHub-hosted runners with R 4.3.0.
+  This is where pull requests (including fork PRs) run — free on a public repo
+  and safely isolated from the self-hosted runner.
+  - `pull_request` (master/develop): full Ubuntu + macOS matrix
+  - `push` (master/develop): **macOS only** — Linux pushes build on the
+    self-hosted runner instead (see below); macOS can't move there
+  - Runs `R CMD check` + testthat; must pass with 0 errors, 0 warnings
+- **`ci-selfhosted.yml`**: Linux build/test on the `maroonbells` self-hosted
+  runner. Triggers: `push` (master/develop), `workflow_dispatch`, `release` —
+  **never `pull_request`** (hard security rule: fork PR code must not execute
+  on the self-hosted runner). No hosted Linux fallback on push, so an offline
+  runner leaves the Linux check pending rather than red.
 - **`coverage.yml`**: Generates code coverage reports using `covr` package
 - **`claude-review.yml`**: Automated code review assistant
 
