@@ -12,7 +12,9 @@ name: CI (self-hosted)
 # contributors") as a further layer.
 # NB: workflow_dispatch and release are not risk-free — they let anyone with
 # WRITE access run an arbitrary ref on this runner. That's the trust write
-# access already implies; the rule above is about UNtrusted (fork) code.
+# access already implies; the rule above is about UNtrusted (fork) code. The
+# runner's blast radius is therefore "any write-access account" — today just
+# the owner (mmulvahill). Revisit this assumption if collaborators are added.
 # ############################################################################
 #
 # The runner is ephemeral (one job per registration, re-registers in ~30s;
