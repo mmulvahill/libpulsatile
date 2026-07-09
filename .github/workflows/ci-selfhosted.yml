@@ -10,10 +10,16 @@ name: CI (self-hosted)
 # trigger list is the control. Keep fork-PR workflow approval at its
 # strictest in Settings -> Actions ("Require approval for all external
 # contributors") as a further layer.
+# NB: workflow_dispatch and release are not risk-free — they let anyone with
+# WRITE access run an arbitrary ref on this runner. That's the trust write
+# access already implies; the rule above is about UNtrusted (fork) code.
 # ############################################################################
 #
 # The runner is ephemeral (one job per registration, re-registers in ~30s;
-# queued jobs wait, they don't fail) and carries the `cpu-heavy` label. This
+# queued jobs wait, they don't fail) and carries the `cpu-heavy` label.
+# Failure mode to know: there is NO hosted Linux fallback on push — if the
+# runner is offline/unregistered, this job queues indefinitely (the commit
+# shows pending, never green) and the only Linux build signal is this one. This
 # repo has no CMake build — the standalone C++ library builds through the
 # R-aware Makefile and the R package through devtools — so the SPEC's
 # "cmake -G Ninja" guidance maps here to make/R with parallelism capped at
@@ -58,9 +64,17 @@ jobs:
     - name: Preflight — verify the runner VM is provisioned
       run: |
         missing=""
-        for tool in R Rscript gfortran make g++ ccache; do
+        for tool in R Rscript gfortran make g++ ccache pkg-config; do
           command -v "$tool" >/dev/null || missing="$missing $tool"
         done
+        # Headers/libs that RcppArmadillo + devtools::check() need — checking
+        # them here turns a cryptic mid-install compile error into an
+        # actionable provisioning message. Coarse by design (not exhaustive).
+        if command -v pkg-config >/dev/null; then
+          for lib in lapack blas libcurl openssl libxml-2.0 fontconfig freetype2 libpng libuv; do
+            pkg-config --exists "$lib" || missing="$missing lib:$lib"
+          done
+        fi
         if [ -n "$missing" ]; then
           echo "::error::Runner VM is missing:$missing. Provision them on the VM (apt-get install r-base-dev gfortran ccache liblapack-dev libblas-dev libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev libuv1-dev) — self-hosted jobs do not apt-get install per run."
           exit 1
