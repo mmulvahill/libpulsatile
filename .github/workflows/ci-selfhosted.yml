@@ -1,0 +1,137 @@
+name: CI (self-hosted)
+
+# The MaroonBells self-hosted half of the CI split (see ci-hosted.yml).
+#
+# ############################ HARD SECURITY RULE ############################
+# This repo is PUBLIC. No workflow that targets the self-hosted runner may
+# ever have a `pull_request` trigger — fork PR code must never execute on the
+# runner. If you add a trigger here, it must be one only repo writers can
+# fire. The job-level guard below is defense in depth, NOT the control: the
+# trigger list is the control. Keep fork-PR workflow approval at its
+# strictest in Settings -> Actions ("Require approval for all external
+# contributors") as a further layer.
+# ############################################################################
+#
+# The runner is ephemeral (one job per registration, re-registers in ~30s;
+# queued jobs wait, they don't fail) and carries the `cpu-heavy` label. This
+# repo has no CMake build — the standalone C++ library builds through the
+# R-aware Makefile and the R package through devtools — so the SPEC's
+# "cmake -G Ninja" guidance maps here to make/R with parallelism capped at
+# -j24 and compiles routed through ccache (CCACHE_DIR=/home/runner/.ccache,
+# persistent on the runner VM across ephemeral registrations, so no
+# actions/cache round-trip is needed).
+#
+# R, gfortran, and the R package system libs are NOT in the runner's base
+# tool list — the preflight step fails fast with a provisioning message
+# rather than dying mysteriously mid-build if the VM lacks them.
+
+on:
+  push:
+    branches: [ master, develop ]
+  workflow_dispatch: {}
+  release:
+    types: [published]
+
+# Newest push wins; an ephemeral single-slot runner shouldn't burn time
+# finishing a build the next push already obsoleted.
+concurrency:
+  group: ci-selfhosted-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    # Defense in depth (see header): only the canonical repo, never anything
+    # PR-shaped, even if the trigger list above is ever edited carelessly.
+    if: github.repository_owner == 'mmulvahill' && github.event_name != 'pull_request'
+    runs-on: [self-hosted, maroonbells, cpu-heavy]
+    timeout-minutes: 120
+    env:
+      CCACHE_DIR: /home/runner/.ccache
+      # Cap build parallelism on the shared homelab box (~24 threads).
+      MAKEFLAGS: "-j24"
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Required for symbolic links
+
+    - name: Preflight — verify the runner VM is provisioned
+      run: |
+        missing=""
+        for tool in R Rscript gfortran make g++ ccache; do
+          command -v "$tool" >/dev/null || missing="$missing $tool"
+        done
+        if [ -n "$missing" ]; then
+          echo "::error::Runner VM is missing:$missing. Provision them on the VM (apt-get install r-base-dev gfortran ccache liblapack-dev libblas-dev libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev libuv1-dev) — self-hosted jobs do not apt-get install per run."
+          exit 1
+        fi
+        echo "runner: ${RUNNER_NAME:-unknown} on $(hostname)"
+        R --version | head -1
+        ccache --version | head -1
+
+    - name: Route R compiles through ccache
+      run: |
+        mkdir -p "$CCACHE_DIR" ~/.R
+        {
+          echo "CC=ccache $(R CMD config CC)"
+          echo "CXX=ccache $(R CMD config CXX)"
+          echo "CXX11=ccache $(R CMD config CXX11)"
+          echo "CXX14=ccache $(R CMD config CXX14)"
+          echo "CXX17=ccache $(R CMD config CXX17)"
+        } > ~/.R/Makevars
+        ccache -z
+
+    - name: Install R packages (persistent library — installs only what's missing)
+      run: |
+        # Persistent across ephemeral runner registrations, so steady-state
+        # runs skip straight past installation.
+        export R_LIBS_USER=/home/runner/.r-libs
+        mkdir -p "$R_LIBS_USER"
+        Rscript -e "
+          .libPaths(Sys.getenv('R_LIBS_USER'))
+          need <- setdiff(c('Rcpp','RcppArmadillo','devtools','testthat','remotes'),
+                          rownames(installed.packages()))
+          if (length(need)) install.packages(need, repos='https://cran.rstudio.com', lib=Sys.getenv('R_LIBS_USER'))
+          remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
+      shell: bash
+
+    - name: Install RInside (with fallback)
+      run: |
+        export R_LIBS_USER=/home/runner/.r-libs
+        Rscript -e "
+        .libPaths(Sys.getenv('R_LIBS_USER'))
+        if (requireNamespace('RInside', quietly=TRUE)) {
+          cat('RInside already installed\n')
+        } else tryCatch({
+          install.packages('RInside', repos='https://cran.rstudio.com', quiet=TRUE)
+          cat('RInside installed from CRAN\n')
+        }, error = function(e) {
+          cat('RInside installation failed, will use NORINSIDE flag\n')
+        })"
+      shell: bash
+
+    - name: Build C++ library and run tests
+      run: |
+        export R_LIBS_USER=/home/runner/.r-libs
+        make clean
+        if Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); library(RInside)" 2>/dev/null; then
+          echo "RInside available, building C++ library"
+          make
+          export LD_LIBRARY_PATH="$(R RHOME)/lib:${LD_LIBRARY_PATH:-}"
+          bin/tests
+        else
+          echo "RInside not available, skipping C++ standalone build (R package uses NORINSIDE)"
+        fi
+
+    - name: Build, check, install, and test R package
+      run: |
+        export R_LIBS_USER=/home/runner/.r-libs
+        cd R-package
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::document()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::check()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::install()"
+        Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::test()"
+
+    - name: ccache stats
+      if: always()
+      run: ccache -s

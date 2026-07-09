@@ -1,4 +1,18 @@
-name: CI
+name: CI (hosted)
+
+# The GitHub-hosted half of the CI split (see ci-selfhosted.yml for the other
+# half and the security rationale). This is where pull requests — including
+# fork PRs from external contributors — run: hosted runners are free on a
+# public repo and isolate untrusted PR code away from the self-hosted runner.
+#
+# Trigger split:
+#   * pull_request        -> full matrix (ubuntu + macos) for PR feedback
+#   * push master/develop -> macOS ONLY. Linux pushes build on the self-hosted
+#     runner (ci-selfhosted.yml); macOS cannot move there, so it keeps running
+#     here on push to preserve the coverage the old ci.yml had.
+#
+# ccache + actions/cache speed up the C++-heavy R package compiles between
+# runs (compiler calls are routed through ccache via ~/.R/Makevars).
 
 on:
   push:
@@ -8,11 +22,17 @@ on:
 
 jobs:
   build-and-test:
+    # On push, the ubuntu build belongs to the self-hosted workflow — only
+    # macOS runs here (see header). On pull_request, both run.
+    if: github.event_name == 'pull_request' || matrix.os == 'macos-latest'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
         r-version: ['4.3.0']
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
     - uses: actions/checkout@v4
@@ -35,15 +55,39 @@ jobs:
           libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
           libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
           libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev \
-          libuv1-dev
+          libuv1-dev ccache
 
     - name: Setup R dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         # Install gfortran for RcppArmadillo
         brew install gfortran || true
+        brew install ccache || true
         # Ensure R can find gfortran
         sudo ln -sf /opt/homebrew/bin/gfortran /usr/local/bin/gfortran || true
+
+    - name: Restore compiler cache (ccache)
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/.ccache
+        key: ccache-${{ matrix.os }}-r${{ matrix.r-version }}-${{ github.sha }}
+        restore-keys: |
+          ccache-${{ matrix.os }}-r${{ matrix.r-version }}-
+
+    - name: Route R compiles through ccache
+      run: |
+        mkdir -p "$CCACHE_DIR" ~/.R
+        # Wrap whatever compilers this R was configured with, rather than
+        # hardcoding gcc/clang names that differ across the matrix.
+        {
+          echo "CC=ccache $(R CMD config CC)"
+          echo "CXX=ccache $(R CMD config CXX)"
+          echo "CXX11=ccache $(R CMD config CXX11)"
+          echo "CXX14=ccache $(R CMD config CXX14)"
+          echo "CXX17=ccache $(R CMD config CXX17)"
+        } >> ~/.R/Makevars
+        ccache -z
+      shell: bash
 
     - name: Install R packages
       run: |
@@ -114,3 +158,7 @@ jobs:
       run: |
         cd R-package
         Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::test()"
+
+    - name: ccache stats
+      if: always()
+      run: ccache -s || true
