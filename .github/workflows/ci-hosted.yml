@@ -20,6 +20,17 @@ on:
   pull_request:
     branches: [ master, develop ]
 
+# Newest commit on a ref wins; rapid-fire pushes to a PR branch shouldn't pile
+# up hosted matrix runs. (Refs differ per PR, so this never cancels main.)
+concurrency:
+  group: ci-hosted-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: this workflow runs untrusted fork-PR code, so pin the token
+# to read-only rather than inheriting the repo-default scope.
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
@@ -101,8 +112,9 @@ jobs:
       shell: bash
 
     - name: Install RInside (with fallback)
-      env:
-        GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      # No GITHUB_PAT: RInside is a public repo, so install_github needs no
+      # auth, and this step runs on fork PRs — passing the token here would
+      # widen what fork-triggered code can see for no benefit.
       run: |
         # Try to install RInside from GitHub, fallback to CRAN if available, or skip
         Rscript -e "

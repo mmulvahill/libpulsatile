@@ -21,11 +21,11 @@ name: CI (self-hosted)
 # runner is offline/unregistered, this job queues indefinitely (the commit
 # shows pending, never green) and the only Linux build signal is this one. This
 # repo has no CMake build — the standalone C++ library builds through the
-# R-aware Makefile and the R package through devtools — so the SPEC's
-# "cmake -G Ninja" guidance maps here to make/R with parallelism capped at
-# -j24 and compiles routed through ccache (CCACHE_DIR=/home/runner/.ccache,
-# persistent on the runner VM across ephemeral registrations, so no
-# actions/cache round-trip is needed).
+# R-aware Makefile and the R package through devtools — so the runner-migration
+# design's "cmake -G Ninja + high parallelism" recipe maps here to make/R with
+# parallelism capped at -j24 and compiles routed through ccache
+# (CCACHE_DIR=/home/runner/.ccache, persistent on the runner VM across
+# ephemeral registrations, so no actions/cache round-trip is needed).
 #
 # R, gfortran, and the R package system libs are NOT in the runner's base
 # tool list — the preflight step fails fast with a provisioning message
@@ -44,6 +44,11 @@ concurrency:
   group: ci-selfhosted-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege on a runner with persistent state: this build only reads the
+# repo. Declared explicitly rather than inheriting the repo-default token scope.
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     # Defense in depth (see header): only the canonical repo, never anything
@@ -55,6 +60,9 @@ jobs:
       CCACHE_DIR: /home/runner/.ccache
       # Cap build parallelism on the shared homelab box (~24 threads).
       MAKEFLAGS: "-j24"
+      # Persistent across ephemeral runner registrations, so steady-state runs
+      # skip package installs; hoisted here so every step sees the same libpath.
+      R_LIBS_USER: /home/runner/.r-libs
 
     steps:
     - uses: actions/checkout@v4
@@ -99,7 +107,6 @@ jobs:
       run: |
         # Persistent across ephemeral runner registrations, so steady-state
         # runs skip straight past installation.
-        export R_LIBS_USER=/home/runner/.r-libs
         mkdir -p "$R_LIBS_USER"
         Rscript -e "
           .libPaths(Sys.getenv('R_LIBS_USER'))
@@ -111,7 +118,6 @@ jobs:
 
     - name: Install RInside (with fallback)
       run: |
-        export R_LIBS_USER=/home/runner/.r-libs
         Rscript -e "
         .libPaths(Sys.getenv('R_LIBS_USER'))
         if (requireNamespace('RInside', quietly=TRUE)) {
@@ -126,7 +132,6 @@ jobs:
 
     - name: Build C++ library and run tests
       run: |
-        export R_LIBS_USER=/home/runner/.r-libs
         make clean
         if Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); library(RInside)" 2>/dev/null; then
           echo "RInside available, building C++ library"
@@ -139,7 +144,6 @@ jobs:
 
     - name: Build, check, install, and test R package
       run: |
-        export R_LIBS_USER=/home/runner/.r-libs
         cd R-package
         Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::document()"
         Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); devtools::check()"
@@ -148,4 +152,4 @@ jobs:
 
     - name: ccache stats
       if: always()
-      run: ccache -s
+      run: ccache -s || true
