@@ -22,13 +22,15 @@ on:
 
 jobs:
   build-and-test:
-    # On push, the ubuntu build belongs to the self-hosted workflow — only
-    # macOS runs here (see header). On pull_request, both run.
-    if: github.event_name == 'pull_request' || matrix.os == 'macos-latest'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # On pull_request: full matrix. On push, the ubuntu build belongs to
+        # the self-hosted workflow — only macOS runs here (see header). This
+        # lives in the matrix expression because `matrix` is not an available
+        # context in a job-level `if` (referencing it there is a plan-time
+        # error that fails the whole workflow with zero jobs).
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest", "macos-latest"]') || fromJSON('["macos-latest"]') }}
         r-version: ['4.3.0']
 
     env:
