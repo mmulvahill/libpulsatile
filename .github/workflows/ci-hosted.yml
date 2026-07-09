@@ -112,9 +112,13 @@ jobs:
       shell: bash
 
     - name: Install RInside (with fallback)
-      # No GITHUB_PAT: RInside is a public repo, so install_github needs no
-      # auth, and this step runs on fork PRs — passing the token here would
-      # widen what fork-triggered code can see for no benefit.
+      # Authenticated GitHub API (5000 req/hr) on TRUSTED runs so install_github
+      # doesn't flake against the unauthenticated 60 req/hr cap on shared runner
+      # IPs — but withhold the token on FORK PRs (defense in depth; it's already
+      # read-only there). The expression is '' only when this is a fork PR;
+      # pushes and same-repo PRs leave pull_request null, so they get the token.
+      env:
+        GITHUB_PAT: ${{ github.event.pull_request.head.repo.fork == true && '' || secrets.GITHUB_TOKEN }}
       run: |
         # Try to install RInside from GitHub, fallback to CRAN if available, or skip
         Rscript -e "

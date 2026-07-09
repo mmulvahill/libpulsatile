@@ -65,9 +65,8 @@ jobs:
       CCACHE_DIR: /home/runner/.ccache
       # Cap build parallelism on the shared homelab box (~24 threads).
       MAKEFLAGS: "-j24"
-      # Persistent across ephemeral runner registrations, so steady-state runs
-      # skip package installs; hoisted here so every step sees the same libpath.
-      R_LIBS_USER: /home/runner/.r-libs
+      # R_LIBS_USER is set in the preflight step (versioned by R major.minor)
+      # and exported to all later steps via $GITHUB_ENV — see there for why.
 
     steps:
     - uses: actions/checkout@v4
@@ -107,6 +106,14 @@ jobs:
         echo "runner: ${RUNNER_NAME:-unknown} on $(hostname)"
         R --version | head -1
         ccache --version | head -1
+        # Persistent library, namespaced by R major.minor and exported to all
+        # later steps. Persistence across ephemeral registrations is the speed
+        # win (steady-state runs skip installs); versioning guards the one way
+        # that bites — an in-place R upgrade would otherwise load ABI-stale
+        # compiled packages (RcppArmadillo especially) instead of rebuilding.
+        # A new R version just starts a fresh dir and reinstalls cleanly.
+        rver=$(Rscript -e 'cat(paste0(R.version$major, ".", R.version$minor))')
+        echo "R_LIBS_USER=/home/runner/.r-libs/${rver}" >> "$GITHUB_ENV"
 
     - name: Route R compiles through ccache
       run: |
@@ -123,7 +130,13 @@ jobs:
     - name: Install R packages (persistent library — installs only what's missing)
       run: |
         # Persistent across ephemeral runner registrations, so steady-state
-        # runs skip straight past installation.
+        # runs skip straight past installation. Consequence to keep in mind:
+        # because deps are installed only when MISSING, this leg verifies
+        # "builds against the currently-installed set", NOT "installs cleanly
+        # from scratch" — a DESCRIPTION change that drops/downgrades a dep isn't
+        # exercised here. The hosted matrix (ci-hosted.yml) does a clean install
+        # on every PR, so that guarantee lives there; don't rely on this leg for
+        # it. remotes::install_deps still picks up NEW/updated deps each run.
         mkdir -p "$R_LIBS_USER"
         Rscript -e "
           .libPaths(Sys.getenv('R_LIBS_USER'))
