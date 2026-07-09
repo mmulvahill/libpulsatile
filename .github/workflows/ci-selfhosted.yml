@@ -94,7 +94,13 @@ jobs:
         # negative. A real miss still surfaces as a warning + the cryptic build
         # error it was meant to pre-empt; a genuinely-missing lib is rare on a
         # once-provisioned VM.
-        for lib in lapack blas libcurl openssl libxml-2.0 fontconfig freetype2 libpng libuv; do
+        # Kept in step with the -dev packages in the provisioning command above
+        # (harfbuzz/fribidi/tiff/jpeg/git2 included so a miss warns rather than
+        # only surfacing as a mid-check compile error). Some .pc names differ
+        # from their apt package (libtiff5-dev -> libtiff-4); a wrong guess just
+        # yields a spurious warning, never a block, since these don't hard-fail.
+        for lib in lapack blas libcurl openssl libxml-2.0 fontconfig freetype2 libpng libuv \
+                   harfbuzz fribidi libtiff-4 libjpeg libgit2; do
           pkg-config --exists "$lib" 2>/dev/null \
             || echo "::warning::pkg-config can't find '$lib' — if the build fails in RcppArmadillo/devtools::check(), install its -dev package (this can also be a missing .pc file on an otherwise-fine VM)."
         done

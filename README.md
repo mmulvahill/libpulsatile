@@ -1,6 +1,6 @@
 # bayespulse
 
-[![CI (hosted)](https://github.com/mmulvahill/libpulsatile/actions/workflows/ci-hosted.yml/badge.svg)](https://github.com/mmulvahill/libpulsatile/actions/workflows/ci-hosted.yml)
+[![CI (hosted)](https://github.com/mmulvahill/libpulsatile/actions/workflows/ci-hosted.yml/badge.svg?branch=master)](https://github.com/mmulvahill/libpulsatile/actions/workflows/ci-hosted.yml)
 [![CI (self-hosted)](https://github.com/mmulvahill/libpulsatile/actions/workflows/ci-selfhosted.yml/badge.svg?branch=master)](https://github.com/mmulvahill/libpulsatile/actions/workflows/ci-selfhosted.yml)
 [![Coverage](https://codecov.io/gh/mmulvahill/libpulsatile/branch/master/graph/badge.svg)](https://codecov.io/gh/mmulvahill/libpulsatile)
 [![Project Status: Active](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
