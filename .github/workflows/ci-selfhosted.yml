@@ -83,7 +83,7 @@ jobs:
           command -v "$tool" >/dev/null || missing="$missing $tool"
         done
         if [ -n "$missing" ]; then
-          echo "::error::Runner VM is missing:$missing. Provision on the VM (apt-get install r-base-dev gfortran ccache pkg-config liblapack-dev libblas-dev libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev libuv1-dev) — self-hosted jobs do not apt-get install per run."
+          echo "::error::Runner VM is missing:$missing. Provision on the VM (apt-get install r-base-dev gfortran ccache pkg-config liblapack-dev libblas-dev libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev libuv1-dev libtirpc-dev) — self-hosted jobs do not apt-get install per run."
           exit 1
         fi
         # Headers/libs that RcppArmadillo + devtools::check() need. WARN, don't
@@ -98,8 +98,12 @@ jobs:
         # only surfacing as a mid-check compile error). Some .pc names differ
         # from their apt package (libtiff5-dev -> libtiff-4); a wrong guess just
         # yields a spurious warning, never a block, since these don't hard-fail.
+        # libtirpc: the standalone C++ library (RInside build) links -ltirpc;
+        # hosted ubuntu images bundle it, the leaner homelab VM did not — this
+        # was the first self-hosted build's failure (2026-07-09, run 29050723925,
+        # "cannot find -ltirpc"), so it's warned here and in the provisioning list.
         for lib in lapack blas libcurl openssl libxml-2.0 fontconfig freetype2 libpng libuv \
-                   harfbuzz fribidi libtiff-4 libjpeg libgit2; do
+                   harfbuzz fribidi libtiff-4 libjpeg libgit2 libtirpc; do
           pkg-config --exists "$lib" 2>/dev/null \
             || echo "::warning::pkg-config can't find '$lib' — if the build fails in RcppArmadillo/devtools::check(), install its -dev package (this can also be a missing .pc file on an otherwise-fine VM)."
         done
