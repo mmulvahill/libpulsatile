@@ -573,8 +573,6 @@ identifiability_check <- function(fit, prior_bounds = NULL,
 }
 
 
-# Map a population_fit's uniform-prior variance components to their prior
-# support c(0, max). Returns an empty list when the spec is unavailable.
 # Derive prior bounds for a single-subject pulse_fit's chain columns. Only the
 # pulse-to-pulse SDs have bounded priors, and only under sd_prior = "uniform"
 # (Uniform(0, max)); a half-Cauchy prior has unbounded support, so the stored
@@ -601,6 +599,8 @@ identifiability_check <- function(fit, prior_bounds = NULL,
 }
 
 
+# Map a population_fit's uniform-prior variance components to their prior
+# support c(0, max). Returns an empty list when the spec is unavailable.
 .population_prior_bounds <- function(fit) {
 
   pri <- fit$spec$population_priors
