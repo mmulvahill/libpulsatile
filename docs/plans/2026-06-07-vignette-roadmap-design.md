@@ -34,7 +34,7 @@ All three model families run today:
 - **Mixing is imperfect** (half-life especially). Low-iteration runs are visibly under-converged (median ESS ≈ 6–64 at 1k–5k iters), so we must *not* showcase toy under-mixed runs.
 - **Vignettes aren't wired into the package today.** No `R-package/vignettes/` directory, empty `Suggests:`, no `VignetteBuilder` field. `my-vignette.Rmd` is never built or checked.
 - **CRAN build-time limits** cap total vignette build time; each must build fast.
-- **Weakly-identified pulse parameterization** (per `lit_review.md`) means reasonably informative priors matter — an honest topic for the priors/diagnostics vignettes, not something to hide.
+- **Weakly-identified pulse parameterization** (per `docs/lit_review.md`) means reasonably informative priors matter — an honest topic for the priors/diagnostics vignettes, not something to hide.
 
 ---
 
@@ -119,9 +119,9 @@ Audience: power users / biostatisticians. Beats: extract per-pulse and per-param
 
 ## 6. Future appendix (I–O) — catalogued, NOT planned
 
-Documented here and in a `99-inference-roadmap.Rmd` stub as short entries (one-line concept · gating backend dependency · `lit_review.md` reference). No outlines, code, or estimates. Explicitly **"not scheduled; revisit after the current approach is solid."**
+Documented here and in a `99-inference-roadmap.Rmd` stub as short entries (one-line concept · gating backend dependency · `docs/lit_review.md` reference). No outlines, code, or estimates. Explicitly **"not scheduled; revisit after the current approach is solid."**
 
-**Inference engines (speed/mixing) — gated on new C++/sampler work, cited to `lit_review.md`:**
+**Inference engines (speed/mixing) — gated on new C++/sampler work, cited to `docs/lit_review.md`:**
 - **I** — SMC / generator-process model (HormoneBayes-style ON/OFF switching; eliminates transdimensional sampling).
 - **J** — Compressed-sensing warm-start (L1/FOCUSS init to cut burn-in); HMC/NUTS; variational inference.
 
@@ -142,7 +142,78 @@ Documented here and in a `99-inference-roadmap.Rmd` stub as short entries (one-l
 
 - Implementation or planning of I–O (revisit after the current approach is solid).
 - Bundling real hormone datasets.
-- Alternative samplers (SMC/HMC/VI) and the `lit_review.md` research directions.
+- Alternative samplers (SMC/HMC/VI) and the `docs/lit_review.md` research directions.
+
+---
+
+## 8. Update log — 2026-08-25 (post-merge with master)
+
+The branch was cut before PRs #18 and #19 landed on master. Merging them in
+invalidated several assumptions recorded above. Amendments, in order of impact:
+
+**The parameterization changed, and with it every prior number in every
+vignette.** `pulse_spec()` now defaults to `pulse_distribution = "lognormal"`,
+`sd_prior = "uniform"`, `student_t_pulses = FALSE`. Pulse mass and width priors
+are on the **log** scale (width additionally on the log of a *variance*). All of
+A, D, and the real-data vignette were passing natural-scale numbers and were
+silently requesting priors an order of magnitude off. They now set only
+data-specific arguments (baseline, half-life, pulse count, error, location prior)
+and leave mass/width to the tuned defaults.
+
+**`simulate_pulse()` and `pulse_spec()` disagree by default.** The simulator
+still defaults to `"truncnorm"` while the spec defaults to `"lognormal"`, so any
+simulate-then-fit vignette must pass `pulse_distribution = "lognormal"` to the
+simulator explicitly. A and D now do. B deliberately stays on the natural-scale
+simulator, since it never fits a model and natural scale reads more clearly.
+
+**The 27-minute runtime constraint in §2 is obsolete.** A 250,000-iteration
+single-subject fit now takes about 50 seconds. The precompute pattern is still
+worth keeping — CRAN build limits are unchanged and per-vignette build time
+should stay near zero — but "BD-MCMC is slow" is no longer the binding
+constraint it was when this was written, and vignettes can afford production
+chain lengths freely.
+
+**The mixing story moved.** §2 and vignette D were written around half-life as
+the problem parameter, with the pulse-width SD frozen. #18 un-froze the SDs, so
+`width_sd` is now estimated and reported. At production length the weak parameters
+are **half-life and baseline** (they trade off against each other in the troughs);
+mass and width mix well. D was rewritten accordingly and now also demonstrates
+`identifiability_check()`.
+
+**Real data needs informative priors; simulated data does not.** The real-data
+vignette will not fit sensibly on package defaults — width collapses below the
+sampling resolution and half-life ESS falls into the low teens. It now sets a
+tight width prior and a tighter half-life prior, and says plainly why. This is
+the §2 "weakly-identified parameterization" bullet showing up in practice, and it
+is arguably the most useful thing that vignette teaches.
+
+**Decision reversed: a real-data vignette exists.** §1 recorded a
+simulation-only decision with real data deferred. `v99-real-data-lh` fits
+`datasets::lh` (Diggle's 48-sample series). No dataset is bundled — it comes from
+base R's **datasets** package — so the "don't ship a dataset" part of the
+decision stands; the "simulation only" part does not. It is numbered `v99` to sit
+outside the A–H ladder. Item **O** in §6 (real-data clinical case studies) is
+still deferred; this does not satisfy it.
+
+**Vignette numbering.** Files are `v01`–`v04` and `v99`, not the `01`–`08` in the
+table above. E–H remain unwritten.
+
+### Resolved: observations logged against the pre-merge branch
+
+Two problems recorded while reviewing the original rendered vignettes:
+
+1. *"`width_sd` is fixed at 10.000, no variation at all."* — Real bug. Fixed by
+   #18, which un-freezes and estimates the pulse-to-pulse SDs. Verified after the
+   merge: `width_sd` now varies across draws with a healthy ESS. The claim in A's
+   prose that the width SD "is held fixed in this version of the package" has been
+   removed.
+2. *"Pulse width appears to not do anything"* (vignette B). — **Not a bug.**
+   `width_mean` is on the variance scale, so B's sweep of 15/35/60 was really a
+   sweep of pulse SD 3.9/5.9/7.7 minutes, all below the 10-minute sampling
+   interval and therefore genuinely indistinguishable in the output. B now sweeps
+   4/100/625 (SD 2/10/25 minutes) and explains the variance scale. The underlying
+   point — that pulses narrower than the sampling grid cannot be resolved — was
+   worth surfacing and is now made explicitly in B, C, and the real-data vignette.
 
 ### Deferred package fix (logged 2026-06-07)
 
