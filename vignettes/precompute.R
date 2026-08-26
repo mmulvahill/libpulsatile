@@ -12,6 +12,12 @@
 #   Rscript vignettes/precompute.R getting   # knit only matching files
 #
 # Commit the resulting *.Rmd and *.png files alongside the *.Rmd.orig source.
+#
+# Reproducibility note: the committed .Rmd files bake in numeric output from
+# one specific R/BLAS/RNG environment. Re-knitting on the same machine is
+# deterministic (seeded), but a different R version or BLAS can shift figures
+# slightly. If a dependency change alters results, RE-RUN this script -- never
+# hand-edit numbers in the generated .Rmd files.
 
 if (!requireNamespace("knitr", quietly = TRUE)) stop("install 'knitr'")
 library(bayespulse)

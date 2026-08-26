@@ -4,6 +4,8 @@
 **Status:** Background research. Nothing here is scheduled work; it is the
 evidence base behind the future-appendix entries (I-O) in
 `2026-06-07-vignette-roadmap-design.md`.
+**Citations:** All seven DOIs verified against Crossref (2026-08-25);
+first author, year, and title match in each case.
 
 ---
 
