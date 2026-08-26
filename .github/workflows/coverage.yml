@@ -39,8 +39,11 @@ jobs:
         Rscript -e ".libPaths(Sys.getenv('R_LIBS_USER')); remotes::install_deps('R-package', dependencies=TRUE, repos='https://cran.rstudio.com')"
 
     - name: Install RInside (optional for coverage)
+      # Same conditional-token rationale as ci-hosted.yml: keep the authenticated
+      # API rate limit on trusted runs, but withhold the token on fork PRs (this
+      # workflow also triggers on pull_request). '' only for fork PRs.
       env:
-        GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_PAT: ${{ github.event.pull_request.head.repo.fork == true && '' || secrets.GITHUB_TOKEN }}
       run: |
         # Try to install RInside, but don't fail if it doesn't work
         Rscript -e "

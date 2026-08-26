@@ -257,3 +257,50 @@ test_that("summary.population_fit includes diagnostics", {
   expect_false(any(grepl("Convergence Diagnostics", no_diag_output)))
   expect_false(any(grepl("ESS", no_diag_output)))
 })
+
+
+test_that("identifiability_check() flags posteriors that fill their prior", {
+  set.seed(42)
+
+  # An unidentified parameter: nearly uniform over its whole prior [0, 30].
+  # A well-identified one: tightly concentrated well inside the prior.
+  chain <- data.frame(
+    iteration      = seq_len(2000),
+    width_sd       = runif(2000, 0, 30),
+    mass_mean      = rnorm(2000, mean = 3.5, sd = 0.1)
+  )
+
+  prior_bounds <- list(
+    width_sd  = c(0, 30),
+    mass_mean = c(0, 30)
+  )
+
+  res <- identifiability_check(chain, prior_bounds = prior_bounds)
+
+  expect_s3_class(res, "data.frame")
+  # iteration column is dropped from the analysis
+  expect_false("iteration" %in% res$parameter)
+  expect_true(all(c("prior_coverage", "weak_identifiability") %in% names(res)))
+
+  width_row <- res[res$parameter == "width_sd", ]
+  mass_row  <- res[res$parameter == "mass_mean", ]
+
+  # The space-filling parameter should cover most of its prior and be flagged.
+  expect_true(width_row$prior_coverage > 0.8)
+  expect_true(isTRUE(width_row$weak_identifiability))
+
+  # The concentrated parameter covers a tiny fraction and is not flagged.
+  expect_true(mass_row$prior_coverage < 0.1)
+  expect_false(isTRUE(mass_row$weak_identifiability))
+})
+
+
+test_that("identifiability_check() returns NA verdict without prior bounds", {
+  chain <- data.frame(a = rnorm(500), b = rnorm(500))
+  res <- identifiability_check(chain)
+
+  expect_true(all(is.na(res$prior_coverage)))
+  expect_true(all(is.na(res$weak_identifiability)))
+  # Posterior summaries are still populated.
+  expect_true(all(is.finite(res$post_sd)))
+})

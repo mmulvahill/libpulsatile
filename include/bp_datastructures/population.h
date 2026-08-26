@@ -152,6 +152,27 @@ struct PopulationPriors {
   double strauss_repulsion;       // gamma for interaction
   double strauss_repulsion_range; // range of interaction
 
+  //
+  // Pulse random-effects parameterization flags (population level)
+  //
+  // lognormal_pulses: when true (the published Horton parameterization) the pulse
+  //   mass/width random effects are modeled on the LOG scale, log(theta) ~
+  //   N(mu, sigma^2/kappa). The population-level pulse-to-pulse SD draw
+  //   (Pop_DrawPulseSDs) then forms residuals as (log(theta) - subject_log_mean)
+  //   and drops the truncated-normal normalizing constant. The subject means
+  //   (mass_mean/width_mean) are means of the LOG random effects and are drawn by
+  //   the per-subject SS_DrawFixedEffects with its own log-normal branch (threaded
+  //   through PopulationSamplers). When false (natural-scale research option) the
+  //   pulse SD draw keeps the natural-scale residuals and the truncation constant.
+  // uniform_sd_prior: carried for parity with the single-subject/joint models. The
+  //   population SD draws (Pop_DrawPulseSDs/Pop_DrawMeanSDs) ALREADY use a
+  //   Uniform(0, max) prior unconditionally (matching Horton), so this flag does
+  //   not alter population sampling; it is threaded onto each subject Patient so
+  //   any per-subject SD machinery stays consistent.
+  // Both default to false (C++ standalone default); the R specs flip them.
+  bool lognormal_pulses = false;
+  bool uniform_sd_prior = false;
+
   // Default constructor
   PopulationPriors() { }
 

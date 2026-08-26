@@ -18,8 +18,18 @@
 //     - population.estimates.width_mean_sd (υ_ω)
 //
 //   Prior: υ ~ Uniform(0, υ_max)
-//   
+//
 //   Likelihood: θ_i ~ N(μ, υ²) where θ_i are subject-level means
+//
+//   Log-normal note: this draw is UNCHANGED under the log-normal pulse
+//   parameterization. The subject-level means θ_i (mass_mean/width_mean) are the
+//   same quantities SS_DrawFixedEffects targets; under log-normal they are means
+//   of the LOG random effects and may be negative. The likelihood here is an
+//   UNTRUNCATED normal, N(θ_i | μ, υ²), with NO pnorm truncation constant (see
+//   posterior_function below), so it is already exactly the log-normal target --
+//   residuals stay (θ_i - μ) with no re-logging. The natural-scale ("research")
+//   behavior is likewise unchanged: it omits truncation too, which is the
+//   existing (documented) research approximation and is deliberately preserved.
 //
 
 class Pop_DrawMeanSDs : 

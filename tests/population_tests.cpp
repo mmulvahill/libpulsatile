@@ -216,3 +216,81 @@ TEST_CASE( "Population samplers can be instantiated", "[population]" ) {
     REQUIRE( true );
   }
 }
+
+
+//
+// Pop_DrawPulseSDs::posterior_function -- log-normal parameterization
+//
+// The pulse-to-pulse SD sigma is a pooled population-level parameter drawn from
+// all pulses across all subjects. Under the papers' (Horton) log-normal model,
+// log(theta_k) ~ N(subject_log_mean, sigma^2/kappa_k): the per-pulse residuals
+// entering sigma's full conditional are formed on the LOG scale,
+// (log(theta_k) - subject_log_mean), weighted by the per-pulse t-scale kappa_k,
+// where subject_log_mean (mass_mean/width_mean) is exactly the quantity the
+// per-subject SS_DrawFixedEffects targets under log-normal -- so the three
+// population full conditionals (means, mean-SD, pulse-SD) are mutually
+// consistent. There is no truncation at 0, so the truncated-normal normalizing
+// constants (old_norm_const/new_norm_const, the pnorm terms) are dropped. The
+// Gaussian-density n*log(sigma) term and the precision term are unchanged; the
+// Uniform SD prior ratio cancels in both branches.
+//
+TEST_CASE( "Pop_DrawPulseSDs posterior_function: log-normal pulse-SD full conditional",
+           "[population][lognormal]" ) {
+
+  NumericVector time = NumericVector::create(0, 10, 20, 30, 40);
+  NumericVector conc = NumericVector::create(2.5, 3.0, 2.8, 2.6, 2.4);
+
+  // Values chosen so the log-scale and natural-scale residuals differ sharply.
+  const double mu    = 1.1;   // subject mean of LOG mass
+  const double sigma = 0.8;   // current pulse-to-pulse SD (population mass_sd)
+  const double prop  = 1.3;   // proposed pulse-to-pulse SD
+  const double theta = 5.0;   // pulse mass (natural scale, > 0)
+  const double kappa = 1.4;   // per-pulse t-scale
+
+  // Subject with mass_mean = mu; PopulationEstimates carries mass_sd = sigma.
+  PatientEstimates est(2.5, 45, 0.05, mu, 3.0, sigma, 0.9);
+  PatientPriors    priors(2.5, 100, 45, 100, 3.5, 100, 30, 100,
+                          2, 8, 1000, 1000, 12, 0, 40);
+  PatientData      data(time, conc);
+  Patient          patient(data, priors, est);
+
+  PopulationEstimates pop_est(mu, 3.0, 2.5, 45.0, 1.0, 5.0, 0.5, 10.0,
+                              sigma, 0.9, 0.05);
+  PopulationPriors    pop_priors(mu, 100, 3.0, 100, 2.5, 100, 45, 100,
+                                 5, 10, 2, 20, 5, 15, 1000, 1000, 12, 0, 40);
+
+  std::vector<Patient> subjects = { patient };
+  Population pop(subjects, pop_est, pop_priors);
+  pop.priors.lognormal_pulses = true;   // papers' parameterization
+
+  REQUIRE( pop.get_total_pulses() == 1 );  // single pulse -> single-term sum
+
+  // Configure the single pulse (subject mean already set to mu above).
+  PulseEstimates & pulse = pop.subjects[0].pulses.front();
+  pulse.mass           = theta;
+  pulse.tvarscale_mass = kappa;
+
+  // for_width = false -> sample the pulse-to-pulse SD of mass
+  Pop_DrawPulseSDs mass_sd_sampler(0.1, 100, 10000, 0.4, false, false, 1000);
+  double got = mass_sd_sampler.posterior_function(&pop, prop, &pop);
+
+  // Closed form (log-normal): log residual, NO truncation normalizing constant.
+  const double logtheta    = std::log(theta);
+  const double ssq         = kappa * (logtheta - mu) * (logtheta - mu);
+  const double first_part  = 1 * (std::log(sigma) - std::log(prop));
+  const double second_part = 0.5 * ssq *
+                             (1.0 / (sigma * sigma) - 1.0 / (prop * prop));
+  const double expected    = first_part + second_part;
+
+  SECTION( "matches the analytic log-normal pulse-SD log-ratio" ) {
+    REQUIRE( got == Approx(expected) );
+  }
+
+  SECTION( "differs from the natural-scale parameterization" ) {
+    // Natural-scale uses (theta - mu) residuals and keeps the pnorm truncation
+    // terms, so the ratio must differ -- confirming the lognormal branch is taken.
+    pop.priors.lognormal_pulses = false;
+    double got_natural = mass_sd_sampler.posterior_function(&pop, prop, &pop);
+    REQUIRE( got != Approx(got_natural) );
+  }
+}

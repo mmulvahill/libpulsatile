@@ -17,7 +17,7 @@
 //     - population.estimates.mass_sd (σ_α)
 //     - population.estimates.width_sd (σ_ω)
 //
-//   Prior: σ ~ Uniform(0, σ_max) (or half-Cauchy in some versions)
+//   Prior: σ ~ Uniform(0, σ_max)
 //   
 //   Likelihood: For all subjects s and pulses k:
 //               α_k,s ~ TruncatedT(μ_α,s, σ_α / sqrt(κ_α,k,s))
@@ -76,6 +76,12 @@ class Pop_DrawPulseSDs :
     std::string get_parameter_name() { return parameter_name; }
 
     bool parameter_support(double val, Population *population);
+
+  public:
+
+    // Exposed publicly so the closed-form log-ratio can be unit tested; the MH
+    // base dispatches through its own private virtual, so this does not change
+    // normal sampling behavior.
     double posterior_function(Population *population, double proposal, Population *notused);
 
 };
@@ -106,36 +112,49 @@ double Pop_DrawPulseSDs::posterior_function(Population *population,
                                             Population *notused) {
 
   double current_sd = (population->estimates).*get_sd_;
-  
+  bool lognormal    = population->priors.lognormal_pulses;
+
   double log_ratio = 0.0;
   int total_pulses = 0;
   double ssq_weighted = 0.0;
   double old_norm_const = 0.0;
   double new_norm_const = 0.0;
-  
+
   // Loop over all subjects and their pulses
   for (auto& subject : population->subjects) {
-    
+
     double subj_mean = (subject.estimates).*get_subj_mean_;
-    
+
     for (auto it = subject.pulses.begin(); it != subject.pulses.end(); ++it) {
-      
+
       double pulse_val = (*it).*get_pulse_value_;
       double tvarscale = (*it).*get_tvarscale_;
-      
+
       total_pulses++;
-      
-      // Weighted sum of squared deviations
-      ssq_weighted += tvarscale * (pulse_val - subj_mean) * (pulse_val - subj_mean);
-      
-      // Normalizing constants for truncated distribution
-      // stdx = μ / (σ / sqrt(κ)) = μ * sqrt(κ) / σ
-      double stdx_old = subj_mean * sqrt(tvarscale) / current_sd;
-      double stdx_new = subj_mean * sqrt(tvarscale) / proposal;
-      
-      // Log of normalizing constant (using pnorm in log space)
-      old_norm_const += Rf_pnorm5(stdx_old, 0, 1, 1.0, 1.0);  // log = TRUE
-      new_norm_const += Rf_pnorm5(stdx_new, 0, 1, 1.0, 1.0);
+
+      if (lognormal) {
+        // Log-normal parameterization (Horton): log(theta) ~ N(mu, sigma^2/kappa),
+        // where mu = subj_mean is the mean of the LOG random effects (the same
+        // quantity SS_DrawFixedEffects targets under log-normal). Residuals are
+        // formed on the log scale, (log(theta) - subj_mean), weighted by the
+        // per-pulse t-scale kappa. There is no truncation at 0, so the
+        // truncated-normal normalizing constants stay 0 and drop out below.
+        double logre = log(pulse_val);
+        ssq_weighted += tvarscale * (logre - subj_mean) * (logre - subj_mean);
+      } else {
+        // Natural-scale truncated-normal parameterization (research option).
+        // Weighted sum of squared deviations
+        ssq_weighted += tvarscale * (pulse_val - subj_mean) * (pulse_val - subj_mean);
+
+        // Normalizing constants for truncated distribution
+        // stdx = μ / (σ / sqrt(κ)) = μ * sqrt(κ) / σ
+        double stdx_old = subj_mean * sqrt(tvarscale) / current_sd;
+        double stdx_new = subj_mean * sqrt(tvarscale) / proposal;
+
+        // Log of normalizing constant (using pnorm in log space)
+        old_norm_const += Rf_pnorm5(stdx_old, 0, 1, 1.0, 1.0);  // log = TRUE
+        new_norm_const += Rf_pnorm5(stdx_new, 0, 1, 1.0, 1.0);
+      }
     }
   }
   

@@ -61,6 +61,8 @@ struct JointSamplers {
   SS_DrawLocations *driver_draw_locations;
   SS_DrawRandomEffects *driver_draw_masses;
   SS_DrawRandomEffects *driver_draw_widths;
+  SS_DrawSDRandomEffects *driver_draw_sd_mass;
+  SS_DrawSDRandomEffects *driver_draw_sd_width;
   SS_DrawTVarScale *driver_draw_tvarscale_mass;
   SS_DrawTVarScale *driver_draw_tvarscale_width;
   SS_DrawError driver_draw_error;
@@ -72,6 +74,8 @@ struct JointSamplers {
   SS_DrawLocations *response_draw_locations;
   SS_DrawRandomEffects *response_draw_masses;
   SS_DrawRandomEffects *response_draw_widths;
+  SS_DrawSDRandomEffects *response_draw_sd_mass;
+  SS_DrawSDRandomEffects *response_draw_sd_width;
   SS_DrawTVarScale *response_draw_tvarscale_mass;
   SS_DrawTVarScale *response_draw_tvarscale_width;
   SS_DrawError response_draw_error;
@@ -88,7 +92,9 @@ struct JointSamplers {
                 double univ_target,
                 bool verbose,
                 int verbose_iter,
-                std::string loc_prior);
+                std::string loc_prior,
+                bool driver_lognormal = false,
+                bool response_lognormal = false);
 
   // Destructor
   ~JointSamplers();
@@ -103,7 +109,9 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
                                     double univ_target,
                                     bool verbose,
                                     int verbose_iter,
-                                    std::string loc_prior) {
+                                    std::string loc_prior,
+                                    bool driver_lognormal,
+                                    bool response_lognormal) {
 
   // Driver samplers
   arma::vec driver_bhl_pv = { Rcpp::as<double>(proposalvars["driver_baseline"]),
@@ -111,13 +119,16 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
   driver_draw_blhl = new SS_DrawBaselineHalflife(driver_bhl_pv, adj_iter, adj_max,
                                                   biv_target, verbose, verbose_iter);
 
+  // Thread the driver's log-normal flag into its mass/width MEAN full
+  // conditionals (the MMH container type is `bool`, so the flag is passed at
+  // construction rather than read from the Patient).
   driver_draw_fixeff_mass = new SS_DrawFixedEffects(
     Rcpp::as<double>(proposalvars["driver_mass_mean"]),
-    adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
+    adj_iter, adj_max, univ_target, false, verbose, verbose_iter, driver_lognormal);
 
   driver_draw_fixeff_width = new SS_DrawFixedEffects(
     Rcpp::as<double>(proposalvars["driver_width_mean"]),
-    adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
+    adj_iter, adj_max, univ_target, true, verbose, verbose_iter, driver_lognormal);
 
   if (loc_prior == "strauss") {
     driver_draw_locations = new SS_DrawLocationsStrauss(
@@ -135,6 +146,14 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
     Rcpp::as<double>(proposalvars["driver_pulse_width"]),
     adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
 
+  driver_draw_sd_mass = new SS_DrawSDRandomEffects(
+    Rcpp::as<double>(proposalvars["driver_mass_sd"]),
+    adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
+
+  driver_draw_sd_width = new SS_DrawSDRandomEffects(
+    Rcpp::as<double>(proposalvars["driver_width_sd"]),
+    adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
+
   driver_draw_tvarscale_mass = new SS_DrawTVarScale(
     Rcpp::as<double>(proposalvars["driver_sdscale_pulse_mass"]),
     adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
@@ -149,13 +168,15 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
   response_draw_blhl = new SS_DrawBaselineHalflife(response_bhl_pv, adj_iter, adj_max,
                                                     biv_target, verbose, verbose_iter);
 
+  // Thread the response's log-normal flag into its mass/width MEAN full
+  // conditionals (see driver note above).
   response_draw_fixeff_mass = new SS_DrawFixedEffects(
     Rcpp::as<double>(proposalvars["response_mass_mean"]),
-    adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
+    adj_iter, adj_max, univ_target, false, verbose, verbose_iter, response_lognormal);
 
   response_draw_fixeff_width = new SS_DrawFixedEffects(
     Rcpp::as<double>(proposalvars["response_width_mean"]),
-    adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
+    adj_iter, adj_max, univ_target, true, verbose, verbose_iter, response_lognormal);
 
   if (loc_prior == "strauss") {
     response_draw_locations = new SS_DrawLocationsStrauss(
@@ -171,6 +192,14 @@ inline JointSamplers::JointSamplers(Rcpp::List proposalvars,
 
   response_draw_widths = new SS_DrawRandomEffects(
     Rcpp::as<double>(proposalvars["response_pulse_width"]),
+    adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
+
+  response_draw_sd_mass = new SS_DrawSDRandomEffects(
+    Rcpp::as<double>(proposalvars["response_mass_sd"]),
+    adj_iter, adj_max, univ_target, false, verbose, verbose_iter);
+
+  response_draw_sd_width = new SS_DrawSDRandomEffects(
+    Rcpp::as<double>(proposalvars["response_width_sd"]),
     adj_iter, adj_max, univ_target, true, verbose, verbose_iter);
 
   response_draw_tvarscale_mass = new SS_DrawTVarScale(
@@ -200,6 +229,8 @@ inline JointSamplers::~JointSamplers() {
   delete driver_draw_locations;
   delete driver_draw_masses;
   delete driver_draw_widths;
+  delete driver_draw_sd_mass;
+  delete driver_draw_sd_width;
   delete driver_draw_tvarscale_mass;
   delete driver_draw_tvarscale_width;
 
@@ -209,6 +240,8 @@ inline JointSamplers::~JointSamplers() {
   delete response_draw_locations;
   delete response_draw_masses;
   delete response_draw_widths;
+  delete response_draw_sd_mass;
+  delete response_draw_sd_width;
   delete response_draw_tvarscale_mass;
   delete response_draw_tvarscale_width;
 
@@ -246,12 +279,25 @@ inline void joint_mcmc_iteration(Patient *driver_patient,
                                             &driver_patient->estimates.width_mean,
                                             iteration);
 
+  // Driver pulse-to-pulse SDs of mass and width (patient-level). Previously the
+  // joint model never sampled these, leaving mass_sd/width_sd frozen at their
+  // starting values for the whole chain.
+  samplers.driver_draw_sd_mass->sample(driver_patient,
+                                       &driver_patient->estimates.mass_sd,
+                                       driver_patient, iteration);
+  samplers.driver_draw_sd_width->sample(driver_patient,
+                                        &driver_patient->estimates.width_sd,
+                                        driver_patient, iteration);
+
   // Driver pulse-level parameters
   samplers.driver_draw_locations->sample_pulses(driver_patient, iteration);
   samplers.driver_draw_masses->sample_pulses(driver_patient, iteration);
   samplers.driver_draw_widths->sample_pulses(driver_patient, iteration);
-  samplers.driver_draw_tvarscale_mass->sample_pulses(driver_patient, iteration);
-  samplers.driver_draw_tvarscale_width->sample_pulses(driver_patient, iteration);
+  // Skip the t-scale (kappa) draws under Gaussian random effects.
+  if (!driver_patient->gaussian_random_effects) {
+    samplers.driver_draw_tvarscale_mass->sample_pulses(driver_patient, iteration);
+    samplers.driver_draw_tvarscale_width->sample_pulses(driver_patient, iteration);
+  }
 
   // Driver error variance
   samplers.driver_draw_error.sample(driver_patient);
@@ -279,12 +325,23 @@ inline void joint_mcmc_iteration(Patient *driver_patient,
                                               &response_patient->estimates.width_mean,
                                               iteration);
 
+  // Response pulse-to-pulse SDs of mass and width (patient-level).
+  samplers.response_draw_sd_mass->sample(response_patient,
+                                         &response_patient->estimates.mass_sd,
+                                         response_patient, iteration);
+  samplers.response_draw_sd_width->sample(response_patient,
+                                          &response_patient->estimates.width_sd,
+                                          response_patient, iteration);
+
   // Response pulse-level parameters
   samplers.response_draw_locations->sample_pulses(response_patient, iteration);
   samplers.response_draw_masses->sample_pulses(response_patient, iteration);
   samplers.response_draw_widths->sample_pulses(response_patient, iteration);
-  samplers.response_draw_tvarscale_mass->sample_pulses(response_patient, iteration);
-  samplers.response_draw_tvarscale_width->sample_pulses(response_patient, iteration);
+  // Skip the t-scale (kappa) draws under Gaussian random effects.
+  if (!response_patient->gaussian_random_effects) {
+    samplers.response_draw_tvarscale_mass->sample_pulses(response_patient, iteration);
+    samplers.response_draw_tvarscale_width->sample_pulses(response_patient, iteration);
+  }
 
   // Update lambda values after response pulse locations may have changed
   // This ensures diagnostic output reflects correct lambda for each pulse position

@@ -174,8 +174,12 @@ fit_pulse_population <- function(data,
   
   # Create subject starting values
   if (is.null(subject_starts)) {
-    # Initialize from population starting values with small random variation
-    set.seed(NULL)  # Ensure randomness
+    # Initialize from population starting values with small random variation.
+    # NOTE: Do NOT re-seed the RNG here. A previous `set.seed(NULL)` call
+    # ("ensure randomness") re-seeded from OS entropy on every fit, which
+    # overrode the user's set.seed() and made fits non-reproducible. The jitter
+    # below now draws from the user's seeded RNG stream so set.seed() controls
+    # the whole fit (mirroring the single-subject model).
     subject_starts <- lapply(1:n_subjects, function(i) {
       list(
         baseline = spec$population_starting_values$baseline_mean + 

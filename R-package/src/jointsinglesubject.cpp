@@ -79,7 +79,9 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
                                 double bivariate_pv_target_ratio,
                                 double univariate_pv_target_ratio) {
 
-  Rcpp::RNGScope rng_scope;
+  // Note: no RNGScope here -- RcppExports.cpp already opens one around this
+  // .Call, so an inner scope would be a reference-counted no-op. set.seed()
+  // reproducibility is handled by that outer scope.
 
   //
   // Initialize driver hormone patient
@@ -111,6 +113,45 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     driver_startingvals["width_sd"]);
   Patient driver_patient(driver_data, driver_patient_priors, driver_estimates);
 
+  // Random-effects distribution for the driver: Student-t (default, per-pulse
+  // t-scale kappa) or Gaussian (kappa fixed at 1). Optional element of the
+  // priors list; absent -> Student-t. Read as a real so logical/numeric both work.
+  {
+    bool driver_student_t = true;
+    if (driver_priors.containsElementNamed("student_t_pulses")) {
+      driver_student_t = (Rf_asReal(driver_priors["student_t_pulses"]) != 0.0);
+    }
+    driver_patient.gaussian_random_effects = !driver_student_t;
+  }
+
+  // Pulse random-effects scale (log-normal vs natural-scale truncated-normal) and
+  // SD prior (uniform vs half-Cauchy) for the driver. Optional priors-list
+  // elements; absent -> false (legacy natural-scale / half-Cauchy). The
+  // SS_DrawSDRandomEffects and birth-death read these flags DIRECTLY from the
+  // Patient; the mass/width MEAN draws take the log-normal flag at construction
+  // (threaded into JointSamplers below).
+  bool driver_lognormal = false;
+  if (driver_priors.containsElementNamed("lognormal_pulses")) {
+    driver_lognormal = (Rf_asReal(driver_priors["lognormal_pulses"]) != 0.0);
+  }
+  bool driver_uniform_sd = false;
+  if (driver_priors.containsElementNamed("uniform_sd_prior")) {
+    driver_uniform_sd = (Rf_asReal(driver_priors["uniform_sd_prior"]) != 0.0);
+  }
+  driver_patient.lognormal_pulses = driver_lognormal;
+  driver_patient.uniform_sd_prior = driver_uniform_sd;
+
+  // Optional Uniform(0, .) SD upper bounds. Only consulted when
+  // uniform_sd_prior is true; absent -> the PatientPriors default (10.0). Mirror
+  // singlesubject.cpp / population.cpp so the user's prior_driver_sd_* bounds are
+  // honored instead of the hardcoded constructor default.
+  if (driver_priors.containsElementNamed("mass_sd_max")) {
+    driver_patient.priors.mass_sd_max = Rf_asReal(driver_priors["mass_sd_max"]);
+  }
+  if (driver_priors.containsElementNamed("width_sd_max")) {
+    driver_patient.priors.width_sd_max = Rf_asReal(driver_priors["width_sd_max"]);
+  }
+
   //
   // Initialize response hormone patient
   //
@@ -140,6 +181,35 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     response_startingvals["mass_sd"],
     response_startingvals["width_sd"]);
   Patient response_patient(response_data, response_patient_priors, response_estimates);
+
+  // Random-effects distribution for the response (see driver note above).
+  {
+    bool response_student_t = true;
+    if (response_priors.containsElementNamed("student_t_pulses")) {
+      response_student_t = (Rf_asReal(response_priors["student_t_pulses"]) != 0.0);
+    }
+    response_patient.gaussian_random_effects = !response_student_t;
+  }
+
+  // Pulse random-effects scale + SD prior for the response (see driver note above).
+  bool response_lognormal = false;
+  if (response_priors.containsElementNamed("lognormal_pulses")) {
+    response_lognormal = (Rf_asReal(response_priors["lognormal_pulses"]) != 0.0);
+  }
+  bool response_uniform_sd = false;
+  if (response_priors.containsElementNamed("uniform_sd_prior")) {
+    response_uniform_sd = (Rf_asReal(response_priors["uniform_sd_prior"]) != 0.0);
+  }
+  response_patient.lognormal_pulses = response_lognormal;
+  response_patient.uniform_sd_prior = response_uniform_sd;
+
+  // Optional Uniform(0, .) SD upper bounds for the response (see driver note).
+  if (response_priors.containsElementNamed("mass_sd_max")) {
+    response_patient.priors.mass_sd_max = Rf_asReal(response_priors["mass_sd_max"]);
+  }
+  if (response_priors.containsElementNamed("width_sd_max")) {
+    response_patient.priors.width_sd_max = Rf_asReal(response_priors["width_sd_max"]);
+  }
 
   //
   // Initialize association parameters
@@ -183,7 +253,8 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
   std::string loc_prior_str = Rcpp::as<std::string>(location_prior[0]);
   JointSamplers samplers(proposalvars, pv_adjust_iter, pv_adjust_max_iter,
                         bivariate_pv_target_ratio, univariate_pv_target_ratio,
-                        verbose, mcmc_iterations, loc_prior_str);
+                        verbose, mcmc_iterations, loc_prior_str,
+                        driver_lognormal, response_lognormal);
 
   //
   // Initialize output chains
@@ -191,11 +262,11 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
   int num_saved = (mcmc_iterations - burnin) / thin;
 
   // Driver chains
-  arma::mat driver_fixed_effects_chain(num_saved, 5, arma::fill::zeros);  // baseline, halflife, mass_mean, width_mean, errorsq
+  arma::mat driver_fixed_effects_chain(num_saved, 7, arma::fill::zeros);  // baseline, halflife, mass_mean, width_mean, errorsq, mass_sd, width_sd
   MatrixVector driver_pulse_chains;
 
   // Response chains
-  arma::mat response_fixed_effects_chain(num_saved, 5, arma::fill::zeros);  // baseline, halflife, mass_mean, width_mean, errorsq
+  arma::mat response_fixed_effects_chain(num_saved, 7, arma::fill::zeros);  // baseline, halflife, mass_mean, width_mean, errorsq, mass_sd, width_sd
   MatrixVector response_pulse_chains;
 
   // Association chains
@@ -229,6 +300,8 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
       driver_fixed_effects_chain(save_index, 2) = driver_patient.estimates.mass_mean;
       driver_fixed_effects_chain(save_index, 3) = driver_patient.estimates.width_mean;
       driver_fixed_effects_chain(save_index, 4) = driver_patient.estimates.errorsq;
+      driver_fixed_effects_chain(save_index, 5) = driver_patient.estimates.mass_sd;
+      driver_fixed_effects_chain(save_index, 6) = driver_patient.estimates.width_sd;
 
       // Driver pulses
       arma::mat driver_pulses_matrix(driver_patient.get_pulsecount(), 5);
@@ -244,6 +317,8 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
       response_fixed_effects_chain(save_index, 2) = response_patient.estimates.mass_mean;
       response_fixed_effects_chain(save_index, 3) = response_patient.estimates.width_mean;
       response_fixed_effects_chain(save_index, 4) = response_patient.estimates.errorsq;
+      response_fixed_effects_chain(save_index, 5) = response_patient.estimates.mass_sd;
+      response_fixed_effects_chain(save_index, 6) = response_patient.estimates.width_sd;
 
       // Response pulses (including lambda)
       arma::mat response_pulses_matrix(response_patient.get_pulsecount(), 6);
@@ -291,9 +366,9 @@ Rcpp::List jointsinglesubject_(Rcpp::NumericVector driver_concentration,
     Rcpp::Named("response_pulses") = response_pulse_list,
     Rcpp::Named("association") = association_chain,
     Rcpp::Named("driver_colnames") = Rcpp::CharacterVector::create(
-      "baseline", "halflife", "mass_mean", "width_mean", "errorsq"),
+      "baseline", "halflife", "mass_mean", "width_mean", "errorsq", "mass_sd", "width_sd"),
     Rcpp::Named("response_colnames") = Rcpp::CharacterVector::create(
-      "baseline", "halflife", "mass_mean", "width_mean", "errorsq"),
+      "baseline", "halflife", "mass_mean", "width_mean", "errorsq", "mass_sd", "width_sd"),
     Rcpp::Named("driver_pulse_colnames") = Rcpp::CharacterVector::create(
       "time", "mass", "width", "tvarscale_mass", "tvarscale_width"),
     Rcpp::Named("response_pulse_colnames") = Rcpp::CharacterVector::create(
