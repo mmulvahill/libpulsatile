@@ -17,6 +17,5 @@ README.Rmd
 ^benchmarks$
 ^vignettes/.*\.Rmd\.orig$
 ^vignettes/precompute\.R$
-^vignettes/my-vignette_files$
 ^doc$
 ^Meta$
