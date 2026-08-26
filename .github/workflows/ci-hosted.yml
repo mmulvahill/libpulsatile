@@ -53,7 +53,8 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       # Parallel compiles: R CMD INSTALL/check pass this to make for the
       # package's src/ objects, and the standalone `make` reads it from the
-      # environment directly. Hosted runners have ~4 cores.
+      # environment directly. Hosted runners have 3-4 cores (ubuntu 4, macOS
+      # arm64 3); a spare job slot just waits, so -j4 is safe on both.
       MAKEFLAGS: -j4
 
     steps:
@@ -98,13 +99,24 @@ jobs:
         # Ensure R can find gfortran
         sudo ln -sf /opt/homebrew/bin/gfortran /usr/local/bin/gfortran || true
 
+    # Resolve the actual R version once, up front: both cache keys below embed
+    # it (matrix says 'release', a moving label) so an upstream R release bump
+    # starts fresh caches instead of restoring ABI-stale artifacts.
+    - name: Resolve R version / locate R library
+      id: rlib
+      run: |
+        mkdir -p "$R_LIBS_USER"
+        echo "path=$R_LIBS_USER" >> "$GITHUB_OUTPUT"
+        echo "rver=$(Rscript --vanilla -e 'cat(as.character(getRversion()))')" >> "$GITHUB_OUTPUT"
+      shell: bash
+
     - name: Restore compiler cache (ccache)
       uses: actions/cache@v4
       with:
         path: ${{ github.workspace }}/.ccache
-        key: ccache-${{ matrix.os }}-r${{ matrix.r-version }}-${{ github.sha }}
+        key: ccache-${{ matrix.os }}-R${{ steps.rlib.outputs.rver }}-${{ github.sha }}
         restore-keys: |
-          ccache-${{ matrix.os }}-r${{ matrix.r-version }}-
+          ccache-${{ matrix.os }}-R${{ steps.rlib.outputs.rver }}-
 
     - name: Route R compiles through ccache
       run: |
@@ -122,17 +134,7 @@ jobs:
       shell: bash
 
     # The single biggest time sink was reinstalling every R dependency from
-    # scratch each run (~13 of ~16 minutes). Cache the user library, keyed on
-    # the RESOLVED R version (matrix says 'release', which moves) and the
-    # DESCRIPTION hash so dependency changes rebuild cleanly.
-    - name: Locate R library for cache
-      id: rlib
-      run: |
-        mkdir -p "$R_LIBS_USER"
-        echo "path=$R_LIBS_USER" >> "$GITHUB_OUTPUT"
-        echo "rver=$(Rscript --vanilla -e 'cat(as.character(getRversion()))')" >> "$GITHUB_OUTPUT"
-      shell: bash
-
+    # scratch each run (~13 of ~16 minutes with the old source builds).
     - name: Restore R package library
       uses: actions/cache@v4
       with:
