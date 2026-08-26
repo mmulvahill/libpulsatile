@@ -21,6 +21,13 @@ secretion and elimination functions written out, is given in the getting-started
 vignette; here the goal is simply to see what each parameter does to the shape
 of the series.
 
+Every simulation below uses `simulate_pulse()`'s default
+`pulse_distribution = "truncnorm"`, which puts pulse mass and width on their
+natural scale -- a `mass_mean` of 3.5 really is a mean mass of 3.5. That keeps
+the sweeps easy to read. When you go on to *fit* a model, `pulse_spec()` defaults
+to the lognormal parameterization instead, where the same quantities live on the
+log scale; the getting-started and priors vignettes cover that difference.
+
 ## A single simulated series
 
 We start from one realistic series to anchor the comparisons that follow.
@@ -57,8 +64,18 @@ par(op)
 Pulse width controls how spread out each secretion event is: a larger width
 gives broader, flatter humps.
 
+One detail matters enormously when reading these plots: **width is on the
+variance scale**. A `width_mean` of 100 is a pulse standard deviation of
+$\sqrt{100} = 10$ minutes, not 100 minutes. That square root compresses things
+sharply, and it is easy to sweep a range that looks like it should matter and
+see almost no change. Sampling here is every 10 minutes, so any pulse whose
+standard deviation is well under 10 minutes is narrower than the sampling grid
+can resolve -- widths of 15 and 60 (SD 3.9 and 7.7 minutes) produce series that
+are nearly indistinguishable. To see the effect we need a range that straddles
+the sampling interval:
+
 ```{r sweep-width, fig.height = 7}
-widths <- c(15, 35, 60)
+widths <- c(4, 100, 625)   # variance scale: SD = 2, 10, and 25 minutes
 op <- par(mfrow = c(3, 1), mar = c(4, 4, 2, 1))
 for (w in widths) {
   set.seed(1)
@@ -66,10 +83,19 @@ for (w in widths) {
                       width_mean = w, constant_baseline = 2.6,
                       constant_halflife = 45)
   plot(s$data$time, s$data$concentration, type = "l",
-       main = paste("width_mean =", w), xlab = "Time (min)", ylab = "Conc.")
+       main = sprintf("width_mean = %d  (SD = %.0f min)", w, sqrt(w)),
+       xlab = "Time (min)", ylab = "Conc.")
 }
 par(op)
 ```
+
+Now the progression is clear: at SD 2 minutes each pulse is a sharp spike that
+the sampling grid barely catches, while at SD 25 minutes secretion is smeared
+across several samples and neighbouring pulses begin to merge into a smooth,
+low-amplitude wave. This is a real limit on what any deconvolution model can
+recover -- pulses much narrower than the sampling interval leave too little
+trace in the data to be identified reliably, a point the study-design vignette
+returns to.
 
 ## Half-life
 
