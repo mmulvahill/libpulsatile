@@ -180,7 +180,7 @@ identifiability_check(fit)
 
 A cohort of five subjects carries only five observations' worth of
 information about each between-subject SD, and the check flags exactly that:
-the half-life SD's posterior still covers about 70% of its Uniform(0, 20)
+the half-life SD's posterior still covers about 71% of its Uniform(0, 20)
 prior (the same warning appears at the bottom of `convergence_report()`
 above). Its effective sample size is healthy, so this is not a mixing
 problem -- more subjects, not longer chains, are the remedy.
