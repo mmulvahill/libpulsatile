@@ -122,7 +122,8 @@ with all subjects updated within each iteration and the population-level
 parameters updated from the subject-level values. We pass the list of
 per-subject data frames straight from the simulation. (This chunk is
 precomputed offline via `vignettes/precompute.R`, so the vignette itself
-builds quickly.)
+builds quickly; run live, a fit this long takes on the order of ten minutes,
+so reduce `iters` if you are exploring interactively.)
 
 
 ``` r
@@ -240,6 +241,12 @@ report[order(report$ess), c("parameter", "mean", "ess", "lag1_acf")]
 #> 11       errorsq  0.0050321 4500.0000  0.034474516
 ```
 
+The pulse-to-pulse `width_sd` mixes slowest here -- the lowest effective
+sample size and the highest lag-1 autocorrelation in the table -- but still
+clears the ESS bar comfortably. That is the same weakly identified
+mass/width ridge met in the convergence vignette, showing up at the
+population level.
+
 `plot_trace()` and `plot_acf()` accept the same `parameters` argument;
 here are the four population means:
 
@@ -349,7 +356,9 @@ singles <- lapply(seq_len(pop$n_subjects), function(i) {
 
 Now compare, for each subject, the unpooled posterior mean against the
 population fit's subject-level posterior mean, with the estimated population
-mean as a reference line:
+mean as a reference line. We show baseline and half-life -- the two
+subject-level parameters on natural, directly interpretable scales; the
+log-scale mass and width means shrink the same way:
 
 
 ``` r
