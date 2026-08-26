@@ -78,12 +78,25 @@ where $B$ is the time-constant baseline concentration.
 
 ## 2. Simulate a hormone series
 
+`bayespulse` places pulse mass and width on the **log scale** by default, matching
+the parameterization used in the source papers. We ask `simulate_pulse()` for
+data from that same distribution with `pulse_distribution = "lognormal"`, so the
+simulation and the model we fit below agree with one another. (This is worth
+being deliberate about: `simulate_pulse()` defaults to the legacy `"truncnorm"`
+parameterization, while `pulse_spec()` defaults to `"lognormal"`.)
+
+Because the scale is logarithmic, `mass_mean = 0.9` means a *median* pulse mass
+of $e^{0.9} \approx 2.5$. Pulse width is additionally on the **variance** scale,
+so `width_mean = 4.6` is a variance of $e^{4.6} \approx 100$, i.e. a pulse
+standard deviation of about 10 minutes.
+
 
 ``` r
 simdat <- simulate_pulse(num_obs = 60, interval = 10, error_var = 0.005,
                          ipi_mean = 12, ipi_var = 10, ipi_min = 4,
-                         mass_mean = 2.5, mass_sd = 0.5,
-                         width_mean = 40, width_sd = 5,
+                         pulse_distribution = "lognormal",
+                         mass_mean = 0.9, mass_sd = 0.3,
+                         width_mean = 4.6, width_sd = 0.3,
                          constant_halflife = 40, constant_baseline = 2.5)
 ```
 
@@ -104,20 +117,23 @@ distributions on each parameter. Here we use a Strauss location prior, which
 discourages pulses from being placed implausibly close together. A full
 treatment of the priors and how to set them is covered in a later vignette.
 
+We only set the arguments that depend on *this* hormone and *this* observation
+window: the elimination half-life, the baseline level, how many pulses we expect
+over the window, and the location prior. Everything governing pulse mass and
+width is left unspecified, so `pulse_spec()` fills in its log-scale defaults --
+these are tuned to the lognormal parameterization and generally mix better than
+hand-picked values.
+
 
 ``` r
 spec <- pulse_spec(
-  location_prior_type   = "strauss",
-  prior_location_gamma  = 0.1,  prior_location_range = 30,
-  prior_halflife_mean   = 38,   prior_halflife_var   = 1000,
-  prior_sd_mass         = 0.5,  prior_sd_width       = 5,
-  prior_mass_mean       = 2.5,  prior_mass_var       = 2,
-  prior_mean_pulse_count = 10,  prior_width_mean     = 35,
-  prior_baseline_mean   = 2.25, prior_baseline_var   = 100,
-  sv_mass_mean = 2, sv_width_sd = 10, sv_error_var = 0.005, sv_mass_sd = 0.4,
-  sv_baseline_mean = 2, sv_halflife_mean = 42,
-  pv_mean_pulse_width = 10, pv_indiv_pulse_width = 10, pv_sd_pulse_width = 0.1,
-  pv_pulse_location = 5, pv_sd_pulse_mass = 0.45)
+  location_prior_type    = "strauss",
+  prior_location_gamma   = 0.1,  prior_location_range = 30,
+  prior_halflife_mean    = 38,   prior_halflife_var   = 1000,
+  prior_baseline_mean    = 2.25, prior_baseline_var   = 100,
+  prior_mean_pulse_count = 10,
+  sv_baseline_mean = 2.5, sv_halflife_mean = 42, sv_error_var = 0.005,
+  pv_pulse_location = 5)
 ```
 
 ## 4. Fit the model
@@ -132,11 +148,11 @@ production-length chain below. This chunk is precomputed offline (via
 
 ``` r
 fit <- fit_pulse(data = simdat$data, spec = spec,
-                 iters = 60000, thin = 20, burnin = 10000, verbose = FALSE)
+                 iters = 250000, thin = 100, burnin = 25000, verbose = FALSE)
 #> Location prior is: strauss
-#> mcmc iterations = 60000
-#> thin = 20
-#> burnin = 10000
+#> mcmc iterations = 250000
+#> thin = 100
+#> burnin = 25000
 ```
 
 ## 5. Inspect the results
@@ -173,13 +189,17 @@ bp_predicted(fit, predicted)
 
 The trace plots show how the sampled parameter values evolve across iterations;
 well-mixed chains that move freely without trends or sticking suggest the
-sampler has converged. (The width standard deviation is held fixed in this
-version of the package, so its trace appears as a flat line; that is expected,
-not a sign of poor mixing.) The posterior histograms summarize the uncertainty in
-each estimated parameter. The location posterior shows where along the time
-axis pulses were detected, with peaks at the inferred pulse positions. Finally,
-the predicted plot overlays the fitted concentration curve and its 80% credible
-band on the observed data, giving a visual check of model fit.
+sampler has converged. The pulse mass and width parameters mix well here; the
+baseline and half-life are slower, which is typical for this model and is taken
+up properly in the convergence vignette. The posterior histograms summarize the
+uncertainty in each estimated parameter. The location posterior shows where along
+the time axis pulses were detected, with peaks at the inferred pulse positions.
+Finally, the predicted plot overlays the fitted concentration curve and its 80%
+credible band on the observed data, giving a visual check of model fit.
+
+Remember that `mass_mean` and `width_mean` are reported on the log scale, so
+compare them against the `0.9` and `4.6` we simulated from rather than against
+natural-scale masses and widths.
 
 Convergence diagnostics in more depth, along with population and joint
 driver-response models, are covered in later vignettes.
