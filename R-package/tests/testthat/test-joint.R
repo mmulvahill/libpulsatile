@@ -435,6 +435,9 @@ test_that("response birth-death does not collapse under the default hard-core lo
                          verbose = FALSE)
 
   expect_gt(mean(fit$response_chain$num_pulses), 2)
+  # A healthy birth-death chain churns constantly; a frozen count (the failure
+  # mode of this bug, stuck at exactly one value for every saved draw) does not.
+  expect_gt(length(unique(fit$response_chain$num_pulses)), 1)
 })
 
 
