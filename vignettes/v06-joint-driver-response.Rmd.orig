@@ -70,7 +70,10 @@ default.
 
 The two simulated datasets are identical in design except for the coupling
 strength: the *coupled* pair uses $\rho = 300$, the *null* pair
-$\rho = 0.01$, effectively zero (the simulator requires $\rho > 0$).
+$\rho = 0.01$, effectively zero (the simulator requires $\rho > 0$). The
+shared `seed` is deliberate -- it makes the *driver* realization identical
+in both datasets, so the pairs differ only in whether the response hormone
+listens to it.
 
 ```{r simulate}
 sim_coupled <- simulate_pulse_joint(
@@ -81,7 +84,7 @@ sim_coupled <- simulate_pulse_joint(
 sim_null <- simulate_pulse_joint(
   rho = 0.01, nu = 20, response_pulse_count = 6,
   num_obs = 144, interval = 10,
-  pulse_distribution = "lognormal", seed = 2026)
+  pulse_distribution = "lognormal", seed = 2026)  # same seed: same driver
 
 c(coupled_driver  = sim_coupled$association$n_driver_pulses,
   coupled_response = sim_coupled$association$n_response_pulses,
@@ -193,7 +196,8 @@ convergence vignette work on any chain:
 ```{r diagnostics}
 sapply(list(rho_coupled = fit_coupled$association_chain$rho,
             nu_coupled  = fit_coupled$association_chain$nu,
-            rho_null    = fit_null$association_chain$rho),
+            rho_null    = fit_null$association_chain$rho,
+            nu_null     = fit_null$association_chain$nu),
        effective_sample_size)
 ```
 
