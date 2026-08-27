@@ -125,7 +125,9 @@ centers $\rho$ at $e^{2.3} \approx 10$, and variance 4 (SD 2) spreads the
 central 95% of prior mass over roughly $\rho \in [0.2, 550]$. That is a
 deliberately weak prior across the scientifically relevant range -- it holds
 $\rho = 1$ (negligible coupling) and $\rho = 300$ (near one-to-one driving)
-almost equally likely, so the data decide.
+almost equally likely, so the data decide. (`prior_response_pulse_count
+= 12` is also the package default -- it is spelled out here only to make the
+response-side pulse-count prior visible alongside the coupling priors.)
 
 
 ``` r
@@ -223,6 +225,10 @@ round(rbind(coupled = rho_summary(fit_coupled),
 #> coupled  41.03 1.68 109.94        0.72
 #> null      3.65 0.14  30.12        0.04
 ```
+
+The posterior mean printed by `summary()` above sits a little higher than
+the median here -- the log-scale posterior is right-skewed, so that gap is
+expected, not a discrepancy.
 
 The two posteriors tell clearly different stories. For the coupled pair the
 $\rho$ posterior moves decisively away from zero -- most of its mass sits at
